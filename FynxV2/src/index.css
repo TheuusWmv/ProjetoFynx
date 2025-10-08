@@ -1,0 +1,288 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FinanceHub Design System - Dark Financial Dashboard Theme */
+
+@layer base {
+  :root {
+    /* Base colors - Dark theme */
+    --background: 220 13% 9%;
+    --foreground: 220 13% 91%;
+
+    /* Card colors */
+    --card: 220 13% 12%;
+    --card-foreground: 220 13% 91%;
+
+    --popover: 220 13% 12%;
+    --popover-foreground: 220 13% 91%;
+
+    /* Brand colors - Purple/Violet primary */
+    --primary: 260 84% 60%;
+    --primary-foreground: 220 13% 91%;
+    
+    /* Accent lime green for CTAs */
+    --accent: 72 87% 55%;
+    --accent-foreground: 220 13% 9%;
+
+    /* Secondary purple tones */
+    --secondary: 220 13% 15%;
+    --secondary-foreground: 220 13% 91%;
+
+    --muted: 220 13% 15%;
+    --muted-foreground: 220 13% 60%;
+
+    /* Success/Income - Green */
+    --success: 142 76% 47%;
+    --success-foreground: 220 13% 91%;
+
+    /* Destructive/Expense - Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 220 13% 91%;
+
+    /* Borders and inputs */
+    --border: 220 13% 20%;
+    --input: 220 13% 15%;
+    --ring: 260 84% 60%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar colors - Dark purple theme */
+    --sidebar-background: 260 20% 8%;
+    --sidebar-foreground: 220 13% 91%;
+    --sidebar-primary: 260 84% 60%;
+    --sidebar-primary-foreground: 220 13% 91%;
+    --sidebar-accent: 260 20% 12%;
+    --sidebar-accent-foreground: 220 13% 91%;
+    --sidebar-border: 260 20% 15%;
+    --sidebar-ring: 260 84% 60%;
+
+    /* League colors for ranking */
+    --league-iron: 30 7% 45%;
+    --league-bronze: 25 65% 50%;
+    --league-silver: 220 9% 65%;
+    --league-gold: 45 90% 60%;
+    --league-diamond: 195 100% 65%;
+  }
+
+  .dark {
+    /* Dark mode colors - keep the same as light since this is already a dark theme */
+    --background: 220 13% 9%;
+    --foreground: 220 13% 91%;
+    --card: 220 13% 12%;
+    --card-foreground: 220 13% 91%;
+    --popover: 220 13% 12%;
+    --popover-foreground: 220 13% 91%;
+    --primary: 260 84% 60%;
+    --primary-foreground: 220 13% 91%;
+    --secondary: 220 13% 15%;
+    --secondary-foreground: 220 13% 91%;
+    --muted: 220 13% 15%;
+    --muted-foreground: 220 13% 60%;
+    --accent: 72 87% 55%;
+    --accent-foreground: 220 13% 9%;
+    --success: 142 76% 47%;
+    --success-foreground: 220 13% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 220 13% 91%;
+    --border: 220 13% 20%;
+    --input: 220 13% 15%;
+    --ring: 260 84% 60%;
+    --sidebar-background: 260 20% 8%;
+    --sidebar-foreground: 220 13% 91%;
+    --sidebar-primary: 260 84% 60%;
+    --sidebar-primary-foreground: 220 13% 91%;
+    --sidebar-accent: 260 20% 12%;
+    --sidebar-accent-foreground: 220 13% 91%;
+    --sidebar-border: 260 20% 15%;
+    --sidebar-ring: 260 84% 60%;
+    --league-iron: 30 7% 45%;
+    --league-bronze: 25 65% 50%;
+    --league-silver: 220 9% 65%;
+    --league-gold: 45 90% 60%;
+    --league-diamond: 195 100% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Added custom animations for FYNX logo and glassmorphism effects */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.6);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.6s ease-out;
+}
+
+.glassmorphism {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* Increased background opacity and added darker tint for better contrast */
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gradient-bg {
+  /* Made gradient darker for better text contrast */
+  background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 25%, #7c2d12 50%, #365314 75%, #166534 100%);
+  background-size: 400% 400%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.gradient-bg-light {
+  background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 25%, #fef3c7 50%, #ecfdf5 75%, #f0fdf4 100%);
+  background-size: 400% 400%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Gradiente de fundo conforme documentação FYNX */
+.gradient-bg-dark {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #4c1d95 50%, #6b21a8 75%, #581c87 100%);
+  background-size: 400% 400%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #a855f7 0%, #c084fc 25%, #e879f9 50%, #f0abfc 75%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.text-gradient-subtle {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 25%, #c084fc 50%, #10b981 75%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes letter-bounce {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes letter-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes text-bounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes text-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.animate-letter-bounce {
+  animation: letter-bounce 2s ease-in-out infinite;
+}
+
+.animate-letter-float {
+  animation: letter-float 3s ease-in-out infinite;
+}
+
+.animate-text-bounce {
+  animation: text-bounce 4s ease-in-out infinite;
+}
+
+.animate-text-float {
+  animation: text-float 5s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Classes de delay para animações */
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+.delay-1000 {
+  animation-delay: 1000ms;
+}

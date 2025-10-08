@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <defs>
+    <style>
+      .cls-1 { fill: #9ca3af; }
+      .cls-2 { fill: #1f2937; }
+      .cls-3 { fill: #f3f4f6; }
+      .cls-4 { fill: #84cc16; }
+      .cls-5 { fill: #7c3aed; }
+    </style>
+  </defs>
+  
+  <!-- Shadow/Border -->
+  <path class="cls-1" d="M150,200 Q150,150 200,150 L800,150 Q850,150 850,200 L850,700 Q850,750 800,750 L200,750 Q150,750 150,700 Z"/>
+  
+  <!-- Main head shape -->
+  <path class="cls-2" d="M180,220 Q180,180 220,180 L780,180 Q820,180 820,220 L820,680 Q820,720 780,720 L220,720 Q180,720 180,680 Z"/>
+  
+  <!-- Face -->
+  <path class="cls-3" d="M220,240 Q220,210 250,210 L750,210 Q780,210 780,240 L780,640 Q780,670 750,670 L250,670 Q220,670 220,640 Z"/>
+  
+  <!-- Horns -->
+  <path class="cls-4" d="M280,180 Q280,120 320,120 Q360,120 360,180 L360,240 Q360,260 340,260 Q320,260 320,240 Z"/>
+  <path class="cls-5" d="M640,180 Q640,120 680,120 Q720,120 720,180 L720,240 Q720,260 700,260 Q680,260 680,240 Z"/>
+  
+  <!-- Eyes with dollar signs -->
+  <circle class="cls-4" cx="350" cy="350" r="60"/>
+  <circle class="cls-2" cx="350" cy="350" r="40"/>
+  <text x="350" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#1f2937">$</text>
+  
+  <circle class="cls-4" cx="650" cy="350" r="60"/>
+  <circle class="cls-2" cx="650" cy="350" r="40"/>
+  <text x="650" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#1f2937">$</text>
+  
+  <!-- Snout -->
+  <ellipse class="cls-3" cx="500" cy="480" rx="120" ry="80"/>
+  <path class="cls-2" d="M420,460 Q420,440 440,440 L560,440 Q580,440 580,460 L580,500 Q580,520 560,520 L440,520 Q420,520 420,500 Z" fill="none" stroke="#1f2937" stroke-width="8"/>
+  
+  <!-- Smile -->
+  <path class="cls-2" d="M450,520 Q500,560 550,520" fill="none" stroke="#1f2937" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Beard/Goatee -->
+  <path class="cls-2" d="M450,580 Q500,620 550,580 L550,640 Q500,680 450,640 Z"/>
+  
+  <!-- Purple tongue -->
+  <path class="cls-5" d="M480,540 Q500,560 520,540 L520,580 Q500,600 480,580 Z"/>
+  
+  <!-- Ear -->
+  <ellipse class="cls-1" cx="780" cy="300" rx="40" ry="80"/>
+  <ellipse class="cls-3" cx="780" cy="300" rx="25" ry="50"/>
+</svg>
