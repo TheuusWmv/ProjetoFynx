@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AddTransactionSheet } from "@/components/AddTransactionSheet"
 import { useDashboard } from "@/hooks/useDashboard"
+import { useGoals } from "@/hooks/useGoals"
 import { AddSpendingGoalSheet } from "@/components/AddSpendingGoalSheet"
 import { 
   Eye, TrendingUp, TrendingDown, Users, 
@@ -39,213 +40,13 @@ const overviewIconMap: Record<string, React.ComponentType<any>> = {
   "Savings Rate": Users,
 }
 
-// Mock data
-const overviewData = [
-  {
-    title: "Total Balance",
-    value: "$8,250.00",
-    change: "+12.5% vs last month",
-    trend: "up",
-    icon: Eye
-  },
-  {
-    title: "Monthly Income", 
-    value: "$5,800",
-    change: "+6.2% vs last month",
-    trend: "up",
-    icon: TrendingUp
-  },
-  {
-    title: "Monthly Expenses",
-    value: "$3,800", 
-    change: "+5.1% vs last month",
-    trend: "up",
-    icon: TrendingDown
-  },
-  {
-    title: "Savings Rate",
-    value: "34.5%",
-    change: "+2.1% steady growth", 
-    trend: "up",
-    icon: Users
-  }
-]
 
-const recentTransactions = [
-  {
-    id: 1,
-    description: "Monthly Salary",
-    type: "Income",
-    status: "Completed",
-    amount: "+$5200.00",
-    date: "Mar 26",
-    category: "Salary",
-    color: "success"
-  },
-  {
-    id: 2,
-    description: "Rent Payment", 
-    type: "Expense",
-    status: "Completed",
-    amount: "$1200.00",
-    date: "Mar 25",
-    category: "Housing",
-    color: "destructive"
-  },
-  {
-    id: 3,
-    description: "Investment Return",
-    type: "Income", 
-    status: "Pending",
-    amount: "+$850.00",
-    date: "Mar 24",
-    category: "Investment",
-    color: "warning"
-  },
-  {
-    id: 4,
-    description: "Grocery Shopping",
-    type: "Expense",
-    status: "Completed", 
-    amount: "$320.50",
-    date: "Mar 23",
-    category: "Food",
-    color: "destructive"
-  }
-]
 
-// Mock data for spending goals
-const spendingGoals = [
-  { 
-    category: "Transporte", 
-    icon: "🚗",
-    currentSpent: 350, 
-    limit: 500, 
-    color: "bg-blue-500",
-    description: "Uber, Gasolina, Estacionamento"
-  },
-  { 
-    category: "Alimentação", 
-    icon: "🍔",
-    currentSpent: 800, 
-    limit: 1200, 
-    color: "bg-green-500",
-    description: "Restaurantes, Delivery, Supermercado"
-  },
-  { 
-    category: "Entretenimento", 
-    icon: "🎬",
-    currentSpent: 280, 
-    limit: 400, 
-    color: "bg-purple-500",
-    description: "Cinema, Streaming, Jogos"
-  },
-  { 
-    category: "Compras", 
-    icon: "🛍️",
-    currentSpent: 1200, 
-    limit: 1000, 
-    color: "bg-red-500",
-    description: "Roupas, Eletrônicos, Diversos"
-  },
-]
 
-// Data for income and expense breakdown by category
-const incomeData = [
-  { category: "Salário", value: 5200, fill: "#8b5cf6" },
-  { category: "Freelance", value: 1500, fill: "#06b6d4" },
-  { category: "Investimentos", value: 850, fill: "#10b981" },
-  { category: "Outros", value: 450, fill: "#f59e0b" },
-]
 
-const expenseData = [
-  { category: "Alimentação", value: 1200, fill: "#ef4444" },
-  { category: "Transporte", value: 800, fill: "#f97316" },
-  { category: "Moradia", value: 1500, fill: "#8b5cf6" },
-  { category: "Entretenimento", value: 400, fill: "#06b6d4" },
-  { category: "Saúde", value: 300, fill: "#10b981" },
-  { category: "Outros", value: 600, fill: "#6b7280" },
-]
 
-// Daily income/expense data for the current month
-const dailyData = [
-  { day: "1", income: 850, expense: 320 },
-  { day: "2", income: 0, expense: 180 },
-  { day: "3", income: 1200, expense: 450 },
-  { day: "4", income: 0, expense: 220 },
-  { day: "5", income: 2300, expense: 380 },
-  { day: "6", income: 0, expense: 150 },
-  { day: "7", income: 0, expense: 280 },
-  { day: "8", income: 850, expense: 420 },
-  { day: "9", income: 0, expense: 190 },
-  { day: "10", income: 1200, expense: 350 },
-  { day: "11", income: 0, expense: 240 },
-  { day: "12", income: 0, expense: 180 },
-  { day: "13", income: 850, expense: 320 },
-  { day: "14", income: 0, expense: 290 },
-  { day: "15", income: 8500, expense: 520 },
-  { day: "16", income: 0, expense: 180 },
-  { day: "17", income: 0, expense: 220 },
-  { day: "18", income: 1200, expense: 380 },
-  { day: "19", income: 0, expense: 150 },
-  { day: "20", income: 2300, expense: 420 },
-  { day: "21", income: 0, expense: 190 },
-  { day: "22", income: 850, expense: 280 },
-  { day: "23", income: 0, expense: 350 },
-  { day: "24", income: 0, expense: 240 },
-  { day: "25", income: 1200, expense: 320 },
-  { day: "26", income: 0, expense: 180 },
-  { day: "27", income: 0, expense: 290 },
-  { day: "28", income: 850, expense: 220 },
-  { day: "29", income: 0, expense: 380 },
-  { day: "30", income: 2300, expense: 150 },
-]
 
-// Monthly comparison data
-// Gerar dados diários para os últimos 60 dias
-const generateDailyData = () => {
-  const data = [];
-  const today = new Date();
-  
-  for (let i = 59; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    
-    // Simular dados mais realistas
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    const baseIncome = isWeekend ? 0 : Math.random() * 1000 + 200;
-    const baseExpense = Math.random() * 400 + 100;
-    
-    // Adicionar alguns picos de receita (salário, freelance)
-    const isPayday = date.getDate() === 1 || date.getDate() === 15;
-    const income = isPayday ? baseIncome + Math.random() * 3000 + 2000 : baseIncome;
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      receitas: Math.round(income),
-      despesas: Math.round(baseExpense),
-    });
-  }
-  
-  return data;
-};
 
-const dailyComparisonData = generateDailyData();
-
-const monthlyData = [
-  { month: "Jan", receitas: 15200, despesas: 12400 },
-  { month: "Fev", receitas: 14800, despesas: 11200 },
-  { month: "Mar", receitas: 16500, despesas: 13800 },
-  { month: "Abr", receitas: 15800, despesas: 12900 },
-  { month: "Mai", receitas: 17200, despesas: 14100 },
-  { month: "Jun", receitas: 16900, despesas: 13600 },
-  { month: "Jul", receitas: 18100, despesas: 15200 },
-  { month: "Ago", receitas: 17600, despesas: 14800 },
-  { month: "Set", receitas: 19200, despesas: 16100 },
-  { month: "Out", receitas: 18800, despesas: 15700 },
-  { month: "Nov", receitas: 20100, despesas: 17200 },
-  { month: "Dez", receitas: 21500, despesas: 18400 },
-];
 
 const chartConfig = {
   receitas: {
@@ -263,7 +64,9 @@ const Index = () => {
   const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("12m")
   const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false)
   const dashboard = useDashboard()
+  const goals = useGoals()
   const data = dashboard.data
+  const goalsData = goals.data
   
   // Estados para o Daily Comparison
   const [dateRange, setDateRange] = React.useState<{
@@ -316,22 +119,21 @@ const Index = () => {
   }))
 
   // Filtrar dados diários baseado no range de datas selecionado
-  const filteredDailyData = (dailyDataBackend.length ? dailyDataBackend : dailyComparisonData).filter((item) => {
+  const filteredDailyData = dailyDataBackend.filter((item) => {
     if (!dateRange.from || !dateRange.to) return true
     const itemDate = new Date(item.date)
     return itemDate >= dateRange.from && itemDate <= dateRange.to
   })
 
   // Filtrar dados mensais para o gráfico de barras
-  const baseMonthlyData = monthlyDataBackend.length ? monthlyDataBackend : monthlyData
-  const filteredMonthlyData = baseMonthlyData.filter((item, index) => {
+  const filteredMonthlyData = monthlyDataBackend.filter((item, index) => {
     let monthsToShow = 12
     if (monthlyTimeRange === "6m") {
       monthsToShow = 6
     } else if (monthlyTimeRange === "3m") {
       monthsToShow = 3
     }
-    return index >= baseMonthlyData.length - monthsToShow
+    return index >= monthlyDataBackend.length - monthsToShow
   })
   return (
     <div className="space-y-6">
@@ -610,7 +412,7 @@ const Index = () => {
               </div>
               
               {/* Transaction Rows */}
-              {(((data?.recentTransactions ?? []).length ? data!.recentTransactions : recentTransactions)).map((transaction: any) => {
+              {(data?.recentTransactions ?? []).map((transaction: any) => {
                 const isBackend = typeof transaction.amount === 'number'
                 const normalizedStatus: 'completed' | 'pending' | 'failed' = isBackend ? transaction.status : (transaction.status.toLowerCase() as 'completed' | 'pending' | 'failed')
                 const color = normalizedStatus === 'pending' ? 'warning' : (transaction.type === 'income' || transaction.type === 'Income' ? 'success' : 'destructive')
@@ -759,68 +561,84 @@ const Index = () => {
           </AddSpendingGoalSheet>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap justify-center gap-4">
-            {spendingGoals.map((goal, index) => {
-              const percentage = (goal.currentSpent / goal.limit) * 100;
-              const isOverLimit = goal.currentSpent > goal.limit;
-              
-              return (
-                <div key={index} className="space-y-3 p-4 rounded-lg border border-border bg-card/50 w-64 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{goal.icon}</span>
-                      <span className="font-medium text-foreground">{goal.category}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Gasto</span>
-                      <span className={`font-semibold ${
-                        isOverLimit ? 'text-destructive' : 'text-foreground'
-                      }`}>
-                        R$ {goal.currentSpent.toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    <Progress 
-                      value={Math.min(percentage, 100)} 
-                      className={`h-2 ${
-                        isOverLimit ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'
-                      }`}
-                    />
-                    
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground">Limite: R$ {goal.limit.toLocaleString()}</span>
-                      <span className={`font-medium ${
-                        isOverLimit ? 'text-destructive' : 'text-muted-foreground'
-                      }`}>
-                        {percentage.toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-muted-foreground">{goal.description}</p>
-                  
-                  {isOverLimit && (
-                    <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 p-2 rounded">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>Excedido em R$ {(goal.currentSpent - goal.limit).toLocaleString()}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="pt-4 border-t border-border">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Total gasto este mês</p>
-              <p className="text-xl font-bold text-foreground">
-                R$ {spendingGoals.reduce((total, goal) => total + goal.currentSpent, 0).toLocaleString()}
-              </p>
+          {goals.isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Carregando metas...</p>
             </div>
-          </div>
+          ) : goals.error ? (
+            <div className="text-center py-8">
+              <p className="text-destructive">Erro ao carregar metas</p>
+            </div>
+          ) : goalsData?.spendingGoals && goalsData.spendingGoals.length > 0 ? (
+            <>
+              <div className="flex flex-wrap justify-center gap-4">
+                {goalsData.spendingGoals.map((goal) => {
+                  const percentage = (goal.currentAmount / goal.targetAmount) * 100;
+                  const isOverLimit = goal.currentAmount > goal.targetAmount;
+                  
+                  return (
+                    <div key={goal.id} className="space-y-3 p-4 rounded-lg border border-border bg-card/50 w-64 flex-shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{goal.category}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">Gasto</span>
+                          <span className={`font-semibold ${
+                            isOverLimit ? 'text-destructive' : 'text-foreground'
+                          }`}>
+                            R$ {goal.currentAmount.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <Progress 
+                          value={Math.min(percentage, 100)} 
+                          className={`h-2 ${
+                            isOverLimit ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'
+                          }`}
+                        />
+                        
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground">Limite: R$ {goal.targetAmount.toLocaleString()}</span>
+                          <span className={`font-medium ${
+                            isOverLimit ? 'text-destructive' : 'text-muted-foreground'
+                          }`}>
+                            {percentage.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">{goal.description}</p>
+                      
+                      {isOverLimit && (
+                        <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 p-2 rounded">
+                          <AlertCircle className="h-3 w-3" />
+                          <span>Excedido em R$ {(goal.currentAmount - goal.targetAmount).toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="pt-4 border-t border-border">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Total gasto este mês</p>
+                  <p className="text-xl font-bold text-foreground">
+                    R$ {goalsData.spendingGoals.reduce((total, goal) => total + goal.currentAmount, 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhuma meta de gasto encontrada</p>
+              <p className="text-sm text-muted-foreground mt-2">Adicione uma meta para começar a acompanhar seus gastos</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

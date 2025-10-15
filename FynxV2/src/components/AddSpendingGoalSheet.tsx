@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useCreateSpendingGoal } from "@/hooks/useGoals"
+import { useToast } from "@/hooks/use-toast"
 
 interface AddSpendingGoalSheetProps {
   children: React.ReactNode
@@ -40,27 +42,60 @@ export function AddSpendingGoalSheet({ children }: AddSpendingGoalSheetProps) {
   const [category, setCategory] = React.useState("")
   const [limit, setLimit] = React.useState("")
   const [description, setDescription] = React.useState("")
+  const { toast } = useToast()
+  const createSpendingGoal = useCreateSpendingGoal()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!category || !limit) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha a categoria e o limite de gasto",
+        variant: "destructive"
+      })
       return
     }
 
-    // Here you would typically save the spending goal
-    console.log("Nova meta de gasto:", {
-      category,
-      limit: parseFloat(limit),
-      description,
-      currentSpent: 0,
-    })
+    const selectedCategoryOption = categoryOptions.find(opt => opt.value === category)
+    const goalTitle = `Meta de ${selectedCategoryOption?.label || category}`
+    
+    // Calculate dates for monthly period
+    const now = new Date()
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
-    // Reset form and close sheet
-    setCategory("")
-    setLimit("")
-    setDescription("")
-    setOpen(false)
+    const payload = {
+      title: goalTitle,
+      category: category,
+      targetAmount: parseFloat(limit),
+      period: 'monthly' as const,
+      startDate,
+      endDate,
+      description: description || `Limite de gasto para ${selectedCategoryOption?.label || category}`
+    }
+
+    createSpendingGoal.mutate(payload, {
+      onSuccess: () => {
+        toast({
+          title: "Meta criada!",
+          description: `Meta de gasto para ${selectedCategoryOption?.label || category} foi criada com sucesso`,
+        })
+        
+        // Reset form and close sheet
+        setCategory("")
+        setLimit("")
+        setDescription("")
+        setOpen(false)
+      },
+      onError: () => {
+        toast({
+          title: "Erro ao criar meta",
+          description: "Não foi possível criar a meta de gasto",
+          variant: "destructive",
+        })
+      }
+    })
   }
 
   const selectedCategory = categoryOptions.find(opt => opt.value === category)
@@ -145,10 +180,10 @@ export function AddSpendingGoalSheet({ children }: AddSpendingGoalSheetProps) {
             </Button>
             <Button
               type="submit"
-              disabled={!category || !limit}
+              disabled={!category || !limit || createSpendingGoal.isPending}
               className="flex-1"
             >
-              Adicionar Meta
+              {createSpendingGoal.isPending ? "Criando..." : "Adicionar Meta"}
             </Button>
           </div>
         </form>

@@ -17,7 +17,7 @@ import type {
 
 // Simula um banco de dados de transações em memória.
 let transactions: Transaction[] = [
-  { id: 1, description: "Salário Mensal", type: 'income', status: 'completed', amount: 5200.00, date: "2025-01-26", category: "Salário" },
+  { id: 1, description: "Salário TESTE", type: 'income', status: 'completed', amount: 5200.00, date: "2025-01-26", category: "Salário" },
   { id: 2, description: "Aluguel", type: 'expense', status: 'completed', amount: 1200.00, date: "2025-01-25", category: "Moradia" },
   { id: 3, description: "Retorno de Investimento", type: 'income', status: 'pending', amount: 850.00, date: "2025-01-24", category: "Investimento" },
   { id: 4, description: "Supermercado", type: 'expense', status: 'completed', amount: 320.50, date: "2025-01-23", category: "Alimentação" },

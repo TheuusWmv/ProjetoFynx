@@ -71,20 +71,24 @@ const localizeLeagueLabel = (league?: string) => {
   return map[key] || (league || 'ouro')
 }
 
-// Mock GitHub-style contribution data (52 weeks)
-const generateContributionData = (streak: number) => {
-  const weeks = 52
-  const data = []
-  for (let week = 0; week < weeks; week++) {
-    const weekData = []
-    for (let day = 0; day < 7; day++) {
-      const hasContribution = Math.random() > 0.3 // 70% chance of check-in
-      const level = hasContribution ? Math.floor(Math.random() * 4) + 1 : 0
-      weekData.push(level)
-    }
-    data.push(weekData)
+// Função para converter dados de contribuição do backend para o formato do Calendar
+const processContributionData = (contributionData?: any) => {
+  if (!contributionData) {
+    // Se não há dados do backend, retorna um objeto vazio
+    return {}
   }
-  return data
+  
+  // Se os dados já estão no formato correto (objeto com datas como chaves)
+  if (typeof contributionData === 'object' && !Array.isArray(contributionData)) {
+    return contributionData
+  }
+  
+  // Se é um array, converte para o formato esperado
+  if (Array.isArray(contributionData)) {
+    return convertToCalendarData(contributionData)
+  }
+  
+  return {}
 }
 
 // Função para converter dados do grid para o formato do Calendar
@@ -112,7 +116,7 @@ const Ranking = () => {
   const { data, isLoading, error } = useRanking()
   const user = data?.userRanking
   const globalLeaderboard = data?.globalLeaderboard ?? []
-  const contributionData = generateContributionData(user?.streakDays ?? 0)
+  const contributionData = processContributionData(data?.contributionData)
 
   const normalizeCategory = (c?: string) => (c ?? '').toLowerCase()
   const getBadgeMeta = (category?: string) => {
@@ -317,7 +321,7 @@ const Ranking = () => {
               <div className="space-y-2">
                 <div className="text-xs text-muted-foreground">Atividade dos últimos 12 meses</div>
                 <Calendar 
-                  values={convertToCalendarData(contributionData)}
+                  values={contributionData}
                   until={new Date().toISOString().split('T')[0]}
                   panelColors={[
                     "#00000033", // nível 0

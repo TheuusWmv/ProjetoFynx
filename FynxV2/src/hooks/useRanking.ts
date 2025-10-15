@@ -69,6 +69,7 @@ export interface RankingData {
   };
   achievements: Achievement[];
   availableBadges: Badge[];
+  contributionData?: Record<string, number> | number[][];
   rankingStats: {
     totalUsers: number;
     averageScore: number;
@@ -110,6 +111,7 @@ export function useRanking() {
         },
         achievements: [],
         availableBadges: [],
+        contributionData: undefined,
         rankingStats: {
           totalUsers: 0,
           averageScore: 0,
@@ -141,6 +143,7 @@ export function useRanking() {
         },
         achievements: raw.achievements ?? raw.userRanking?.achievements ?? [],
         availableBadges: raw.availableBadges ?? [],
+        contributionData: raw.contributionData,
         rankingStats: {
           totalUsers: raw.rankingStats?.totalUsers ?? 0,
           averageScore: raw.rankingStats?.averageScore ?? 0,

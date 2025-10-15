@@ -88,7 +88,7 @@ let userRankings: UserRanking[] = [
   {
     id: '1',
     userId: 'user1',
-    username: 'João Silva',
+    username: 'Matheus Teste',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=joao',
     position: 1,
     score: 2850,
@@ -187,6 +187,42 @@ export class RankingService {
     return 'bronze';
   }
 
+  // Generate mock contribution data for the last 12 months
+  static generateContributionData(userId: string): Record<string, number> {
+    const contributionData: Record<string, number> = {};
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 365); // 365 days ago
+
+    // Get user streak to influence contribution pattern
+    const user = userRankings.find(u => u.userId === userId);
+    const streakDays = user?.streakDays || 0;
+
+    for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      
+      // Skip if dateStr is undefined (should never happen, but TypeScript safety)
+      if (!dateStr) continue;
+      
+      // Generate contribution level (0-4) based on user activity
+      let level = 0;
+      const daysSinceStart = Math.floor((d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Higher activity in recent days if user has good streak
+      if (streakDays > 50 && daysSinceStart > 300) {
+        level = Math.random() > 0.3 ? Math.floor(Math.random() * 4) + 1 : 0;
+      } else if (streakDays > 20 && daysSinceStart > 200) {
+        level = Math.random() > 0.5 ? Math.floor(Math.random() * 3) + 1 : 0;
+      } else {
+        level = Math.random() > 0.7 ? Math.floor(Math.random() * 2) + 1 : 0;
+      }
+      
+      contributionData[dateStr] = level;
+    }
+
+    return contributionData;
+  }
+
   // Get complete ranking data
   static getRankingData(userId: string = 'user1'): RankingData {
     const userRanking = userRankings.find(u => u.userId === userId) || userRankings[0];
@@ -196,6 +232,7 @@ export class RankingService {
     const globalLeaderboard = this.getGlobalLeaderboard();
     const friendsLeaderboard = this.getFriendsLeaderboard(userId);
     const categoryLeaderboards = this.getCategoryLeaderboards();
+    const contributionData = this.generateContributionData(userId);
     
     return {
       userRanking,
@@ -204,6 +241,7 @@ export class RankingService {
       categoryLeaderboards,
       achievements: mockAchievements,
       availableBadges: mockBadges,
+      contributionData,
       rankingStats: {
         totalUsers: userRankings.length,
         averageScore: Math.round(userRankings.reduce((sum, u) => sum + u.score, 0) / userRankings.length),
