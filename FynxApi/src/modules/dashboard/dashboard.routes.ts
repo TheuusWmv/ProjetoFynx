@@ -13,6 +13,9 @@ const router = Router();
 // Rota para buscar os dados do dashboard.
 router.get('/', DashboardController.getDashboardData);
 
+// Rota específica para overview (compatível com Refine)
+router.get('/overview', DashboardController.getOverviewData);
+
 // Rota para adicionar uma nova transação.
 router.post('/transactions', DashboardController.addTransaction);
 

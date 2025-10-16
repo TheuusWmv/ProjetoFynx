@@ -10,12 +10,13 @@ import * as DashboardService from './dashboard.service.js';
 
 /**
  * Controlador para buscar os dados do dashboard.
- * @param {Request} _req - O objeto de requisição (não utilizado).
+ * @param {Request} req - O objeto de requisição.
  * @param {Response} res - O objeto de resposta.
  */
-export const getDashboardData = (_req: Request, res: Response) => {
+export const getDashboardData = async (req: Request, res: Response) => {
   try {
-    const data = DashboardService.getDashboardData();
+    const userId = parseInt(req.query.userId as string) || 1; // Default para usuário 1
+    const data = await DashboardService.getDashboardData(userId);
     res.status(200).json(data);
   } catch (error) {
     console.error('Erro no getDashboardData:', error);
@@ -27,29 +28,63 @@ export const getDashboardData = (_req: Request, res: Response) => {
 };
 
 /**
+ * Controlador para buscar apenas os dados de overview (compatível com Refine).
+ * @param {Request} req - O objeto de requisição.
+ * @param {Response} res - O objeto de resposta.
+ */
+export const getOverviewData = async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.query.userId as string) || 1; // Default para usuário 1
+    const data = await DashboardService.getDashboardData(userId);
+    
+    // Retorna apenas os dados de overview no formato compatível com Refine
+    res.status(200).json({
+      data: data.overview || [],
+      total: data.overview?.length || 0
+    });
+  } catch (error) {
+    console.error('Erro no getOverviewData:', error);
+    res.status(500).json({ 
+      message: "Erro ao buscar dados de overview", 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+};
+
+/**
  * Controlador para adicionar uma nova transação.
  * @param {Request} req - O objeto de requisição.
  * @param {Response} res - O objeto de resposta.
  */
-export const addTransaction = (req: Request, res: Response) => {
+export const addTransaction = async (req: Request, res: Response) => {
   try {
-    const newTransaction = DashboardService.addTransaction(req.body);
+    const userId = parseInt(req.query.userId as string) || 1; // Default para usuário 1
+    const newTransaction = await DashboardService.addTransaction(userId, req.body);
     res.status(201).json(newTransaction);
   } catch (error) {
-    res.status(500).json({ message: "Erro ao adicionar transação", error });
+    console.error('Erro no addTransaction:', error);
+    res.status(500).json({ 
+      message: "Erro ao adicionar transação", 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 };
 
 /**
  * Controlador para buscar o histórico de transações.
- * @param {Request} _req - O objeto de requisição (não utilizado).
+ * @param {Request} req - O objeto de requisição.
  * @param {Response} res - O objeto de resposta.
  */
-export const getTransactionHistory = (_req: Request, res: Response) => {
+export const getTransactionHistory = async (req: Request, res: Response) => {
   try {
-    const history = DashboardService.getTransactionHistory();
+    const userId = parseInt(req.query.userId as string) || 1; // Default para usuário 1
+    const history = await DashboardService.getTransactionHistory(userId);
     res.status(200).json(history);
   } catch (error) {
-    res.status(500).json({ message: "Erro ao buscar histórico de transações", error });
+    console.error('Erro no getTransactionHistory:', error);
+    res.status(500).json({ 
+      message: "Erro ao buscar histórico de transações", 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 };

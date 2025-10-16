@@ -5,7 +5,7 @@ export class SpendingLimitsController {
   // Get all spending limits
   static async getSpendingLimits(req: Request, res: Response) {
     try {
-      const spendingLimits = SpendingLimitsService.getSpendingLimits();
+      const spendingLimits = await SpendingLimitsService.getSpendingLimits();
       res.status(200).json(spendingLimits);
     } catch (error) {
       console.error('Error fetching spending limits:', error);
@@ -20,7 +20,7 @@ export class SpendingLimitsController {
       if (!id) {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const spendingLimit = SpendingLimitsService.getSpendingLimitById(id);
+      const spendingLimit = await SpendingLimitsService.getSpendingLimitById(parseInt(id));
       
       if (!spendingLimit) {
         return res.status(404).json({ error: 'Spending limit not found' });
@@ -40,7 +40,7 @@ export class SpendingLimitsController {
       if (!category) {
         return res.status(400).json({ error: 'Category parameter is required' });
       }
-      const spendingLimit = SpendingLimitsService.getSpendingLimitByCategory(category);
+      const spendingLimit = await SpendingLimitsService.getSpendingLimitByCategory(category);
       
       if (!spendingLimit) {
         return res.status(404).json({ error: 'Spending limit not found for this category' });
@@ -56,7 +56,7 @@ export class SpendingLimitsController {
   // Create new spending limit
   static async createSpendingLimit(req: Request, res: Response) {
     try {
-      const spendingLimit = SpendingLimitsService.createSpendingLimit(req.body);
+      const spendingLimit = await SpendingLimitsService.createSpendingLimit(req.body);
       res.status(201).json(spendingLimit);
     } catch (error) {
       console.error('Error creating spending limit:', error);
@@ -71,7 +71,7 @@ export class SpendingLimitsController {
       if (!id) {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const spendingLimit = SpendingLimitsService.updateSpendingLimit(id, req.body);
+      const spendingLimit = await SpendingLimitsService.updateSpendingLimit(parseInt(id), req.body);
       
       if (!spendingLimit) {
         return res.status(404).json({ error: 'Spending limit not found' });
@@ -91,7 +91,7 @@ export class SpendingLimitsController {
       if (!id) {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const spendingLimit = SpendingLimitsService.updateSpendingLimitProgress(id, req.body);
+      const spendingLimit = await SpendingLimitsService.updateSpendingLimitProgress(parseInt(id), req.body);
       
       if (!spendingLimit) {
         return res.status(404).json({ error: 'Spending limit not found' });
@@ -111,7 +111,7 @@ export class SpendingLimitsController {
       if (!id) {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const success = SpendingLimitsService.deleteSpendingLimit(id);
+      const success = await SpendingLimitsService.deleteSpendingLimit(parseInt(id));
       
       if (!success) {
         return res.status(404).json({ error: 'Spending limit not found' });
@@ -127,7 +127,7 @@ export class SpendingLimitsController {
   // Get all categories
   static async getCategories(req: Request, res: Response) {
     try {
-      const categories = SpendingLimitsService.getCategories();
+      const categories = await SpendingLimitsService.getCategories();
       res.status(200).json(categories);
     } catch (error) {
       console.error('Error fetching categories:', error);

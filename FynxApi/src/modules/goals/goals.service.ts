@@ -8,94 +8,38 @@ import type {
   CreateBudgetRequest,
   UpdateBudgetRequest
 } from './goals.types.js';
+import { database } from '../../database/database.js';
+import type { Database } from 'sqlite3';
 
-// Mock data storage
-let spendingGoals: SpendingGoal[] = [
-  {
-    id: '1',
-    title: 'Economizar para Viagem',
-    category: 'Lazer',
-    targetAmount: 5000,
-    currentAmount: 2500,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-06-01',
-    status: 'active',
-    description: 'Viagem para Europa no meio do ano',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-15T00:00:00Z'
-  },
-  {
-    id: '2',
-    title: 'Fundo de Emergência',
-    category: 'Poupança',
-    targetAmount: 10000,
-    currentAmount: 7500,
-    period: 'yearly',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-    status: 'active',
-    description: 'Reserva de emergência para 6 meses',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-20T00:00:00Z'
-  },
-  {
-    id: '3',
-    title: 'Novo Notebook',
-    category: 'Tecnologia',
-    targetAmount: 3000,
-    currentAmount: 3000,
-    period: 'monthly',
-    startDate: '2024-12-01',
-    endDate: '2025-02-01',
-    status: 'completed',
-    description: 'MacBook Pro para trabalho',
-    createdAt: '2024-12-01T00:00:00Z',
-    updatedAt: '2025-02-01T00:00:00Z'
-  }
-];
+// Database row interfaces
+interface SpendingGoalRow {
+  id: number;
+  title: string;
+  category: string;
+  target_amount: number;
+  current_amount: number;
+  period: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
 
-let budgets: Budget[] = [
-  {
-    id: '1',
-    category: 'Alimentação',
-    allocatedAmount: 800,
-    spentAmount: 650,
-    remainingAmount: 150,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'active',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-20T00:00:00Z'
-  },
-  {
-    id: '2',
-    category: 'Transporte',
-    allocatedAmount: 400,
-    spentAmount: 450,
-    remainingAmount: -50,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'exceeded',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-22T00:00:00Z'
-  },
-  {
-    id: '3',
-    category: 'Lazer',
-    allocatedAmount: 600,
-    spentAmount: 320,
-    remainingAmount: 280,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'active',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-18T00:00:00Z'
-  }
-];
+interface BudgetRow {
+  id: number;
+  category: string;
+  allocated_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  period: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 // Helper function to calculate goal progress
 const calculateGoalProgress = (goal: SpendingGoal): GoalProgress => {
@@ -126,215 +70,451 @@ const calculateGoalProgress = (goal: SpendingGoal): GoalProgress => {
   };
 };
 
+// Helper function to format spending goal from database
+const formatSpendingGoalFromDB = (row: SpendingGoalRow): SpendingGoal => {
+  const goal: SpendingGoal = {
+    id: row.id.toString(),
+    title: row.title,
+    category: row.category,
+    targetAmount: row.target_amount,
+    currentAmount: row.current_amount,
+    period: row.period as 'monthly' | 'weekly' | 'yearly',
+    startDate: row.start_date,
+    endDate: row.end_date,
+    status: row.status as 'active' | 'completed' | 'paused',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+  
+  if (row.description) {
+    goal.description = row.description;
+  }
+  
+  return goal;
+};
+
+// Helper function to format budget from database
+const formatBudgetFromDB = (row: BudgetRow): Budget => ({
+  id: row.id.toString(),
+  category: row.category,
+  allocatedAmount: row.allocated_amount,
+  spentAmount: row.spent_amount,
+  remainingAmount: row.remaining_amount,
+  period: row.period as 'monthly' | 'weekly' | 'yearly',
+  startDate: row.start_date,
+  endDate: row.end_date,
+  status: row.status as 'active' | 'exceeded' | 'completed',
+  createdAt: row.created_at,
+  updatedAt: row.updated_at
+});
+
 export class GoalsService {
   // Get all goals data
-  static getGoalsData(): GoalsData {
-    const goalProgress = spendingGoals.map(calculateGoalProgress);
-    const activeGoals = spendingGoals.filter(goal => goal.status === 'active').length;
-    const completedGoals = spendingGoals.filter(goal => goal.status === 'completed').length;
-    const totalBudgetAllocated = budgets.reduce((sum, budget) => sum + budget.allocatedAmount, 0);
-    const totalBudgetSpent = budgets.reduce((sum, budget) => sum + budget.spentAmount, 0);
+  static async getGoalsData(): Promise<GoalsData> {
+    const db = database;
+    
+    try {
+      // Get spending goals
+      const goalRows = await db.all('SELECT * FROM spending_goals ORDER BY created_at DESC', []);
+      const spendingGoals = goalRows.map((row: any) => formatSpendingGoalFromDB(row as SpendingGoalRow));
+      const goalProgress = spendingGoals.map(calculateGoalProgress);
+      const activeGoals = spendingGoals.filter(goal => goal.status === 'active').length;
+      const completedGoals = spendingGoals.filter(goal => goal.status === 'completed').length;
 
-    return {
-      spendingGoals,
-      budgets,
-      goalProgress,
-      totalGoals: spendingGoals.length,
-      activeGoals,
-      completedGoals,
-      totalBudgetAllocated,
-      totalBudgetSpent
-    };
+      // Get budgets
+      const budgetRows = await db.all('SELECT * FROM budgets ORDER BY created_at DESC', []);
+      const budgets = budgetRows.map((row: any) => formatBudgetFromDB(row as BudgetRow));
+      const totalBudgetAllocated = budgets.reduce((sum, budget) => sum + budget.allocatedAmount, 0);
+      const totalBudgetSpent = budgets.reduce((sum, budget) => sum + budget.spentAmount, 0);
+
+      return {
+        spendingGoals,
+        budgets,
+        goalProgress,
+        totalGoals: spendingGoals.length,
+        activeGoals,
+        completedGoals,
+        totalBudgetAllocated,
+        totalBudgetSpent
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Spending Goals CRUD
-  static getSpendingGoals(): SpendingGoal[] {
-    return spendingGoals;
-  }
-
-  static getSpendingGoalById(id: string): SpendingGoal | null {
-    return spendingGoals.find(goal => goal.id === id) || null;
-  }
-
-  static createSpendingGoal(data: CreateSpendingGoalRequest): SpendingGoal {
-    const newGoal: SpendingGoal = {
-      id: (spendingGoals.length + 1).toString(),
-      ...data,
-      currentAmount: 0,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    spendingGoals.push(newGoal);
-    return newGoal;
-  }
-
-  static updateSpendingGoal(id: string, data: UpdateSpendingGoalRequest): SpendingGoal | null {
-    const goalIndex = spendingGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return null;
-
-    const currentGoal = spendingGoals[goalIndex]!;
-    const updatedGoal: SpendingGoal = {
-      id: currentGoal.id,
-      title: currentGoal.title,
-      category: currentGoal.category,
-      targetAmount: currentGoal.targetAmount,
-      currentAmount: currentGoal.currentAmount,
-      period: currentGoal.period,
-      startDate: currentGoal.startDate,
-      endDate: currentGoal.endDate,
-      status: currentGoal.status,
-      createdAt: currentGoal.createdAt,
-      updatedAt: new Date().toISOString(),
-      ...(currentGoal.description !== undefined && { description: currentGoal.description })
-    };
-
-    // Only update properties that are defined
-    if (data.title !== undefined) updatedGoal.title = data.title;
-    if (data.category !== undefined) updatedGoal.category = data.category;
-    if (data.targetAmount !== undefined) updatedGoal.targetAmount = data.targetAmount;
-    if (data.period !== undefined) updatedGoal.period = data.period;
-    if (data.startDate !== undefined) updatedGoal.startDate = data.startDate;
-    if (data.endDate !== undefined) updatedGoal.endDate = data.endDate;
-    if (data.status !== undefined) updatedGoal.status = data.status;
-    if (data.description !== undefined) updatedGoal.description = data.description;
-
-    spendingGoals[goalIndex] = updatedGoal;
-    return updatedGoal;
-  }
-
-  static deleteSpendingGoal(id: string): boolean {
-    const goalIndex = spendingGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return false;
-
-    spendingGoals.splice(goalIndex, 1);
-    return true;
-  }
-
-  static updateGoalProgress(id: string, amount: number): SpendingGoal | null {
-    const goalIndex = spendingGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return null;
-
-    const goal = spendingGoals[goalIndex];
-    if (!goal) return null;
+  static async getSpendingGoals(): Promise<SpendingGoal[]> {
+    const db = database;
     
-    goal.currentAmount = amount;
-    goal.updatedAt = new Date().toISOString();
-
-    // Auto-complete goal if target reached
-    if (amount >= goal.targetAmount) {
-      goal.status = 'completed';
+    try {
+      const rows = await db.all('SELECT * FROM spending_goals ORDER BY created_at DESC', []);
+      return rows.map(formatSpendingGoalFromDB);
+    } catch (error) {
+      throw error;
     }
-
-    return goal;
   }
 
-  static updateGoalProgressByTransaction(id: string, amount: number, transactionType: 'income' | 'expense'): SpendingGoal | null {
-    const goalIndex = spendingGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return null;
-
-    const goal = spendingGoals[goalIndex];
-    if (!goal) return null;
+  static async getSpendingGoalById(id: string): Promise<SpendingGoal | null> {
+    const db = database;
     
-    // Para metas financeiras: somar receitas e subtrair despesas
-    if (transactionType === 'income') {
-      goal.currentAmount += amount;
-    } else if (transactionType === 'expense') {
-      goal.currentAmount = Math.max(0, goal.currentAmount - amount);
+    try {
+      const row = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      return row ? formatSpendingGoalFromDB(row as SpendingGoalRow) : null;
+    } catch (error) {
+      throw error;
     }
+  }
+
+  static async createSpendingGoal(data: CreateSpendingGoalRequest): Promise<SpendingGoal> {
+    const db = database;
+    const now = new Date().toISOString();
     
-    goal.updatedAt = new Date().toISOString();
-
-    // Auto-complete goal if target reached
-    if (goal.currentAmount >= goal.targetAmount) {
-      goal.status = 'completed';
+    try {
+      const result = await db.run(`
+        INSERT INTO spending_goals (
+          title, category, target_amount, current_amount, period, 
+          start_date, end_date, status, description, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        data.title,
+        data.category,
+        data.targetAmount,
+        0, // currentAmount starts at 0
+        data.period,
+        data.startDate,
+        data.endDate,
+        'active',
+        data.description || null,
+        now,
+        now
+      ]);
+      
+      // Get the created goal
+      const row = await db.get('SELECT * FROM spending_goals WHERE id = ?', [result.lastID]);
+      return formatSpendingGoalFromDB(row as SpendingGoalRow);
+    } catch (error) {
+      throw error;
     }
+  }
 
-    return goal;
+  static async updateSpendingGoal(id: string, data: UpdateSpendingGoalRequest): Promise<SpendingGoal | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      // Build dynamic update query
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+      
+      if (data.title !== undefined) {
+        updateFields.push('title = ?');
+        updateValues.push(data.title);
+      }
+      if (data.category !== undefined) {
+        updateFields.push('category = ?');
+        updateValues.push(data.category);
+      }
+      if (data.targetAmount !== undefined) {
+        updateFields.push('target_amount = ?');
+        updateValues.push(data.targetAmount);
+      }
+      if (data.period !== undefined) {
+        updateFields.push('period = ?');
+        updateValues.push(data.period);
+      }
+      if (data.startDate !== undefined) {
+        updateFields.push('start_date = ?');
+        updateValues.push(data.startDate);
+      }
+      if (data.endDate !== undefined) {
+        updateFields.push('end_date = ?');
+        updateValues.push(data.endDate);
+      }
+      if (data.status !== undefined) {
+        updateFields.push('status = ?');
+        updateValues.push(data.status);
+      }
+      if (data.description !== undefined) {
+        updateFields.push('description = ?');
+        updateValues.push(data.description);
+      }
+      
+      if (updateFields.length === 0) {
+        // No fields to update, return current goal
+        return await this.getSpendingGoalById(id);
+      }
+      
+      updateFields.push('updated_at = ?');
+      updateValues.push(now);
+      updateValues.push(parseInt(id));
+      
+      const query = `UPDATE spending_goals SET ${updateFields.join(', ')} WHERE id = ?`;
+      
+      const result = await db.run(query, updateValues);
+      
+      if (result.changes === 0) {
+        return null;
+      }
+      
+      // Get the updated goal
+      const row = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      return formatSpendingGoalFromDB(row as SpendingGoalRow);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async deleteSpendingGoal(id: string): Promise<boolean> {
+    const db = database;
+    
+    try {
+      const result = await db.run('DELETE FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      return result.changes > 0;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateGoalProgress(id: string, amount: number): Promise<SpendingGoal | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      // First get the current goal to check target amount
+      const row = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      
+      if (!row) {
+        return null;
+      }
+      
+      const goal = formatSpendingGoalFromDB(row as SpendingGoalRow);
+      const newStatus = amount >= goal.targetAmount ? 'completed' : goal.status;
+      
+      // Update the goal
+      await db.run(
+        'UPDATE spending_goals SET current_amount = ?, status = ?, updated_at = ? WHERE id = ?',
+        [amount, newStatus, now, parseInt(id)]
+      );
+      
+      // Get the updated goal
+      const updatedRow = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      return updatedRow ? formatSpendingGoalFromDB(updatedRow as SpendingGoalRow) : null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateGoalProgressByTransaction(id: string, amount: number, transactionType: 'income' | 'expense'): Promise<SpendingGoal | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      // First get the current goal
+      const row = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      
+      if (!row) {
+        return null;
+      }
+      
+      const goal = formatSpendingGoalFromDB(row as SpendingGoalRow);
+      let newCurrentAmount = goal.currentAmount;
+      
+      // Para metas financeiras: somar receitas e subtrair despesas
+      if (transactionType === 'income') {
+        newCurrentAmount += amount;
+      } else if (transactionType === 'expense') {
+        newCurrentAmount = Math.max(0, newCurrentAmount - amount);
+      }
+      
+      const newStatus = newCurrentAmount >= goal.targetAmount ? 'completed' : goal.status;
+      
+      // Update the goal
+      await db.run(
+        'UPDATE spending_goals SET current_amount = ?, status = ?, updated_at = ? WHERE id = ?',
+        [newCurrentAmount, newStatus, now, parseInt(id)]
+      );
+      
+      // Get the updated goal
+      const updatedRow = await db.get('SELECT * FROM spending_goals WHERE id = ?', [parseInt(id)]);
+      return updatedRow ? formatSpendingGoalFromDB(updatedRow as SpendingGoalRow) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Budgets CRUD
-  static getBudgets(): Budget[] {
-    return budgets;
-  }
-
-  static getBudgetById(id: string): Budget | null {
-    return budgets.find(budget => budget.id === id) || null;
-  }
-
-  static createBudget(data: CreateBudgetRequest): Budget {
-    const newBudget: Budget = {
-      id: (budgets.length + 1).toString(),
-      ...data,
-      spentAmount: 0,
-      remainingAmount: data.allocatedAmount,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    budgets.push(newBudget);
-    return newBudget;
-  }
-
-  static updateBudget(id: string, data: UpdateBudgetRequest): Budget | null {
-    const budgetIndex = budgets.findIndex(budget => budget.id === id);
-    if (budgetIndex === -1) return null;
-
-    const currentBudget = budgets[budgetIndex]!;
-    const updatedBudget: Budget = {
-      id: currentBudget.id,
-      category: currentBudget.category,
-      allocatedAmount: currentBudget.allocatedAmount,
-      spentAmount: currentBudget.spentAmount,
-      remainingAmount: currentBudget.remainingAmount,
-      period: currentBudget.period,
-      startDate: currentBudget.startDate,
-      endDate: currentBudget.endDate,
-      status: currentBudget.status,
-      createdAt: currentBudget.createdAt,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Only update properties that are defined
-    if (data.category !== undefined) updatedBudget.category = data.category;
-    if (data.allocatedAmount !== undefined) updatedBudget.allocatedAmount = data.allocatedAmount;
-    if (data.period !== undefined) updatedBudget.period = data.period;
-    if (data.startDate !== undefined) updatedBudget.startDate = data.startDate;
-    if (data.endDate !== undefined) updatedBudget.endDate = data.endDate;
-    if (data.status !== undefined) updatedBudget.status = data.status;
-
-    // Recalculate remaining amount if allocated amount changed
-    if (data.allocatedAmount !== undefined) {
-      updatedBudget.remainingAmount = data.allocatedAmount - updatedBudget.spentAmount;
-      updatedBudget.status = updatedBudget.remainingAmount < 0 ? 'exceeded' : 'active';
+  static async getBudgets(): Promise<Budget[]> {
+    const db = database;
+    
+    try {
+      const rows = await db.all('SELECT * FROM budgets ORDER BY created_at DESC', []);
+      return rows.map((row: any) => formatBudgetFromDB(row as BudgetRow));
+    } catch (error) {
+      throw error;
     }
-
-    budgets[budgetIndex] = updatedBudget;
-    return updatedBudget;
   }
 
-  static deleteBudget(id: string): boolean {
-    const budgetIndex = budgets.findIndex(budget => budget.id === id);
-    if (budgetIndex === -1) return false;
-
-    budgets.splice(budgetIndex, 1);
-    return true;
+  static async getBudgetById(id: string): Promise<Budget | null> {
+    const db = database;
+    
+    try {
+      const row = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+      return row ? formatBudgetFromDB(row as BudgetRow) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static updateBudgetSpending(id: string, spentAmount: number): Budget | null {
-    const budgetIndex = budgets.findIndex(budget => budget.id === id);
-    if (budgetIndex === -1) return null;
+  static async createBudget(data: CreateBudgetRequest): Promise<Budget> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      const result = await db.run(`
+        INSERT INTO budgets (
+          category, allocated_amount, spent_amount, remaining_amount, 
+          period, start_date, end_date, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        data.category,
+        data.allocatedAmount,
+        0, // spentAmount starts at 0
+        data.allocatedAmount, // remainingAmount equals allocatedAmount initially
+        data.period,
+        data.startDate,
+        data.endDate,
+        'active',
+        now,
+        now
+      ]);
+      
+      // Get the created budget
+      const row = await db.get('SELECT * FROM budgets WHERE id = ?', [result.lastID]);
+      return formatBudgetFromDB(row as BudgetRow);
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    const budget = budgets[budgetIndex];
-    if (!budget) return null;
+  static async updateBudget(id: string, data: UpdateBudgetRequest): Promise<Budget | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      // Build dynamic update query
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+      
+      if (data.category !== undefined) {
+        updateFields.push('category = ?');
+        updateValues.push(data.category);
+      }
+      if (data.allocatedAmount !== undefined) {
+        updateFields.push('allocated_amount = ?');
+        updateValues.push(data.allocatedAmount);
+      }
+      if (data.period !== undefined) {
+        updateFields.push('period = ?');
+        updateValues.push(data.period);
+      }
+      if (data.startDate !== undefined) {
+        updateFields.push('start_date = ?');
+        updateValues.push(data.startDate);
+      }
+      if (data.endDate !== undefined) {
+        updateFields.push('end_date = ?');
+        updateValues.push(data.endDate);
+      }
+      if (data.status !== undefined) {
+        updateFields.push('status = ?');
+        updateValues.push(data.status);
+      }
+      
+      if (updateFields.length === 0) {
+        // No fields to update, return current budget
+        return await this.getBudgetById(id);
+      }
+      
+      updateFields.push('updated_at = ?');
+      updateValues.push(now);
+      updateValues.push(parseInt(id));
+      
+      const query = `UPDATE budgets SET ${updateFields.join(', ')} WHERE id = ?`;
+      
+      const result = await db.run(query, updateValues);
+      
+      if (result.changes === 0) {
+        return null;
+      }
+      
+      // If allocated amount changed, recalculate remaining amount and status
+      if (data.allocatedAmount !== undefined) {
+        const row = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+        
+        if (!row) {
+          return null;
+        }
+        
+        const budget = formatBudgetFromDB(row as BudgetRow);
+        const newRemainingAmount = budget.allocatedAmount - budget.spentAmount;
+        const newStatus = newRemainingAmount < 0 ? 'exceeded' : 'active';
+        
+        await db.run(
+          'UPDATE budgets SET remaining_amount = ?, status = ? WHERE id = ?',
+          [newRemainingAmount, newStatus, parseInt(id)]
+        );
+        
+        // Get the final updated budget
+        const finalRow = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+        return finalRow ? formatBudgetFromDB(finalRow as BudgetRow) : null;
+      } else {
+        // Get the updated budget
+        const row = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+        return row ? formatBudgetFromDB(row as BudgetRow) : null;
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    budget.spentAmount = spentAmount;
-    budget.remainingAmount = budget.allocatedAmount - spentAmount;
-    budget.status = budget.remainingAmount < 0 ? 'exceeded' : 'active';
-    budget.updatedAt = new Date().toISOString();
+  static async deleteBudget(id: string): Promise<boolean> {
+    const db = database;
+    
+    try {
+      const result = await db.run('DELETE FROM budgets WHERE id = ?', [parseInt(id)]);
+      return result.changes > 0;
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    return budget;
+  static async updateBudgetSpending(id: string, spentAmount: number): Promise<Budget | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    try {
+      // First get the current budget to calculate remaining amount
+      const row = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+      
+      if (!row) {
+        return null;
+      }
+      
+      const budget = formatBudgetFromDB(row as BudgetRow);
+      const remainingAmount = budget.allocatedAmount - spentAmount;
+      const status = remainingAmount < 0 ? 'exceeded' : 'active';
+      
+      // Update the budget
+      await db.run(
+        'UPDATE budgets SET spent_amount = ?, remaining_amount = ?, status = ?, updated_at = ? WHERE id = ?',
+        [spentAmount, remainingAmount, status, now, parseInt(id)]
+      );
+      
+      // Get the updated budget
+      const updatedRow = await db.get('SELECT * FROM budgets WHERE id = ?', [parseInt(id)]);
+      return updatedRow ? formatBudgetFromDB(updatedRow as BudgetRow) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 }

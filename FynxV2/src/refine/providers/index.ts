@@ -61,6 +61,14 @@ export const resourcesConfig = [
     }
   },
   {
+    name: "overview",
+    list: "/overview",
+    meta: {
+      label: "Overview",
+      icon: "📈"
+    }
+  },
+  {
     name: "transactions", 
     list: "/transactions",
     create: "/transactions/create",

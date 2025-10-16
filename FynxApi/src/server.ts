@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { logger } from './utils/logger.js';
 import routes from './routes/index.js';
+import './database/database.js'; // Inicializa o banco de dados
 
 logger.info('🚀 Starting FYNX API Server...');
 

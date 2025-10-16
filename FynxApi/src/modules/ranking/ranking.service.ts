@@ -8,358 +8,404 @@ import type {
   ScoreCalculation 
 } from './ranking.types.js';
 
-// Mock data storage
-const mockBadges: Badge[] = [
-  {
-    id: '1',
-    name: 'Primeiro Passo',
-    description: 'Complete sua primeira meta de economia',
-    icon: '🎯',
-    color: '#10B981',
-    earnedAt: '2025-01-15T00:00:00Z',
-    category: 'goals'
-  },
-  {
-    id: '2',
-    name: 'Poupador Consistente',
-    description: 'Economize por 30 dias consecutivos',
-    icon: '💰',
-    color: '#3B82F6',
-    earnedAt: '2025-01-20T00:00:00Z',
-    category: 'savings'
-  },
-  {
-    id: '3',
-    name: 'Maratonista Financeiro',
-    description: 'Mantenha uma sequência de 100 dias',
-    icon: '🏃‍♂️',
-    color: '#F59E0B',
-    earnedAt: '2025-01-25T00:00:00Z',
-    category: 'streak'
-  }
-];
+import { database } from '../../database/database.js';
 
-const mockAchievements: Achievement[] = [
-  {
-    id: '1',
-    title: 'Meta de R$ 10.000',
-    description: 'Economize R$ 10.000 em total',
-    icon: '💎',
-    progress: 7500,
-    target: 10000,
-    completed: false,
-    category: 'savings',
-    reward: {
-      points: 500,
-      ...(mockBadges[1] && { badge: mockBadges[1] })
-    }
-  },
-  {
-    id: '2',
-    title: 'Completar 5 Metas',
-    description: 'Complete 5 metas de economia',
-    icon: '🎯',
-    progress: 3,
-    target: 5,
-    completed: false,
-    category: 'goals',
-    reward: {
-      points: 300
-    }
-  },
-  {
-    id: '3',
-    title: 'Sequência de 50 dias',
-    description: 'Mantenha atividade por 50 dias consecutivos',
-    icon: '🔥',
-    progress: 50,
-    target: 50,
-    completed: true,
-    completedAt: '2025-01-20T00:00:00Z',
-    category: 'streak',
-    reward: {
-      points: 200,
-      ...(mockBadges[2] && { badge: mockBadges[2] })
-    }
-  }
-];
+// Helper function to calculate user level based on score
+function calculateLevel(score: number): number {
+  return Math.floor(score / 500) + 1;
+}
 
-let userRankings: UserRanking[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    username: 'Matheus Teste',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=joao',
-    position: 1,
-    score: 2850,
-    level: 12,
-    badges: [mockBadges[0], mockBadges[1], mockBadges[2]].filter((badge): badge is Badge => Boolean(badge)),
-    achievements: mockAchievements,
-    monthlyScore: 450,
-    totalSavings: 15000,
-    savingsRate: 25.5,
-    goalsCompleted: 8,
-    streakDays: 75,
-    lastActivity: '2025-01-25T10:30:00Z',
-    joinedAt: '2024-10-01T00:00:00Z'
-  },
-  {
-    id: '2',
-    userId: 'user2',
-    username: 'Maria Santos',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=maria',
-    position: 2,
-    score: 2720,
-    level: 11,
-    badges: [mockBadges[0], mockBadges[1]].filter((badge): badge is Badge => Boolean(badge)),
-    achievements: mockAchievements.slice(0, 2),
-    monthlyScore: 420,
-    totalSavings: 12500,
-    savingsRate: 22.3,
-    goalsCompleted: 6,
-    streakDays: 45,
-    lastActivity: '2025-01-25T09:15:00Z',
-    joinedAt: '2024-11-15T00:00:00Z'
-  },
-  {
-    id: '3',
-    userId: 'user3',
-    username: 'Pedro Costa',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=pedro',
-    position: 3,
-    score: 2580,
-    level: 10,
-    badges: [mockBadges[0]].filter((badge): badge is Badge => Boolean(badge)),
-    achievements: mockAchievements.slice(0, 1),
-    monthlyScore: 380,
-    totalSavings: 9800,
-    savingsRate: 18.7,
-    goalsCompleted: 4,
-    streakDays: 32,
-    lastActivity: '2025-01-24T16:45:00Z',
-    joinedAt: '2024-12-01T00:00:00Z'
-  },
-  {
-    id: '4',
-    userId: 'user4',
-    username: 'Ana Oliveira',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ana',
-    position: 4,
-    score: 2350,
-    level: 9,
-    badges: [mockBadges[0]].filter((badge): badge is Badge => Boolean(badge)),
-    achievements: mockAchievements.slice(0, 1),
-    monthlyScore: 340,
-    totalSavings: 8200,
-    savingsRate: 20.1,
-    goalsCompleted: 3,
-    streakDays: 28,
-    lastActivity: '2025-01-25T08:20:00Z',
-    joinedAt: '2024-12-15T00:00:00Z'
-  },
-  {
-    id: '5',
-    userId: 'user5',
-    username: 'Carlos Ferreira',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=carlos',
-    position: 5,
-    score: 2180,
-    level: 8,
-    badges: [],
-    achievements: [],
-    monthlyScore: 310,
-    totalSavings: 6500,
-    savingsRate: 15.8,
-    goalsCompleted: 2,
-    streakDays: 15,
-    lastActivity: '2025-01-23T14:30:00Z',
-    joinedAt: '2025-01-01T00:00:00Z'
+// Helper function to calculate league based on score
+function calculateLeague(score: number): 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' {
+  if (score >= 10000) return 'diamond';
+  if (score >= 7500) return 'platinum';
+  if (score >= 5000) return 'gold';
+  if (score >= 2500) return 'silver';
+  return 'bronze';
+}
+
+// Helper function to get trend
+function getTrend(change: number): 'up' | 'down' | 'same' {
+  if (change > 0) return 'up';
+  if (change < 0) return 'down';
+  return 'same';
+}
+
+// Helper function to calculate percentile
+function calculatePercentile(score: number, allScores: number[]): number {
+  const sortedScores = allScores.sort((a, b) => a - b);
+  const rank = sortedScores.findIndex(s => s >= score) + 1;
+  return Math.round((rank / sortedScores.length) * 100);
+}
+
+// Helper function to generate contribution data
+function generateContributionData(): Array<{ date: string; value: number; level: number }> {
+  const data: Array<{ date: string; value: number; level: number }> = [];
+  const today = new Date();
+  
+  for (let i = 364; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    
+    const value = Math.random() > 0.3 ? Math.floor(Math.random() * 4) + 1 : 0;
+    const dateString = date.toISOString().split('T')[0] || '';
+    data.push({
+      date: dateString,
+      value,
+      level: value
+    });
   }
-];
+  
+  return data;
+}
 
 export class RankingService {
-  // Calculate league based on score
-  static calculateLeague(score: number): 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' {
-    if (score >= 2500) return 'diamond';
-    if (score >= 2000) return 'platinum';
-    if (score >= 1500) return 'gold';
-    if (score >= 1000) return 'silver';
-    return 'bronze';
-  }
-
-  // Generate mock contribution data for the last 12 months
-  static generateContributionData(userId: string): Record<string, number> {
-    const contributionData: Record<string, number> = {};
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 365); // 365 days ago
-
-    // Get user streak to influence contribution pattern
-    const user = userRankings.find(u => u.userId === userId);
-    const streakDays = user?.streakDays || 0;
-
-    for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      
-      // Skip if dateStr is undefined (should never happen, but TypeScript safety)
-      if (!dateStr) continue;
-      
-      // Generate contribution level (0-4) based on user activity
-      let level = 0;
-      const daysSinceStart = Math.floor((d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Higher activity in recent days if user has good streak
-      if (streakDays > 50 && daysSinceStart > 300) {
-        level = Math.random() > 0.3 ? Math.floor(Math.random() * 4) + 1 : 0;
-      } else if (streakDays > 20 && daysSinceStart > 200) {
-        level = Math.random() > 0.5 ? Math.floor(Math.random() * 3) + 1 : 0;
-      } else {
-        level = Math.random() > 0.7 ? Math.floor(Math.random() * 2) + 1 : 0;
-      }
-      
-      contributionData[dateStr] = level;
-    }
-
-    return contributionData;
-  }
-
-  // Get complete ranking data
-  static getRankingData(userId: string = 'user1'): RankingData {
-    const userRanking = userRankings.find(u => u.userId === userId) || userRankings[0];
-    if (!userRanking) {
-      throw new Error('User ranking not found');
-    }
-    const globalLeaderboard = this.getGlobalLeaderboard();
-    const friendsLeaderboard = this.getFriendsLeaderboard(userId);
-    const categoryLeaderboards = this.getCategoryLeaderboards();
-    const contributionData = this.generateContributionData(userId);
+  // Get complete ranking data for a user
+  static async getRankingData(userId: number): Promise<RankingData> {
+    const db = database;
     
+    // Get user data and calculate score
+    const userScore = await this.calculateScore(userId);
+    const userLevel = calculateLevel(userScore.totalScore);
+    const userLeague = calculateLeague(userScore.totalScore);
+    
+    // Get user position in global ranking
+    const allScores = await db.all(`
+      SELECT 
+        u.id,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_expenses,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed,
+        COALESCE(MAX(julianday('now') - julianday(t.date)), 0) as days_since_last_activity
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      LEFT JOIN goals g ON u.id = g.user_id
+      GROUP BY u.id
+      ORDER BY (total_income - total_expenses) DESC
+    `, []) as any[];
+    
+    const userPosition = allScores.findIndex(score => score.id === userId) + 1;
+    const allScoreValues = allScores.map(s => s.total_income - s.total_expenses);
+    const percentile = calculatePercentile(userScore.totalScore, allScoreValues);
+    
+    // Get monthly score (current month savings)
+    const monthlyScore = await db.get(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as monthly_savings
+      FROM transactions t
+      WHERE t.user_id = ? 
+        AND strftime('%Y-%m', t.date) = strftime('%Y-%m', 'now')
+    `, [userId]) as any;
+    
+    // Get total savings and savings rate
+    const savingsData = await db.get(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_expenses
+      FROM transactions t
+      WHERE t.user_id = ?
+    `, [userId]) as any;
+    
+    const totalSavings = savingsData.total_income - savingsData.total_expenses;
+    const savingsRate = savingsData.total_income > 0 ? 
+      ((savingsData.total_income - savingsData.total_expenses) / savingsData.total_income) * 100 : 0;
+    
+    // Get goals completed
+    const goalsCompleted = await db.get(`
+      SELECT COUNT(*) as count
+      FROM goals
+      WHERE user_id = ? AND status = 'completed'
+    `, [userId]) as any;
+    
+    // Calculate streak days (simplified - days since last transaction)
+    const lastActivity = await db.get(`
+      SELECT MAX(date) as last_date
+      FROM transactions
+      WHERE user_id = ?
+    `, [userId]) as any;
+    
+    const streakDays = lastActivity?.last_date ? 
+      Math.max(0, Math.floor((Date.now() - new Date(lastActivity.last_date).getTime()) / (1000 * 60 * 60 * 24))) : 0;
+    
+    const globalLeaderboard = await this.getGlobalLeaderboard();
+    const friendsLeaderboard = await this.getFriendsLeaderboard(userId);
+    const categoryLeaderboards = await this.getCategoryLeaderboards();
+    
+    const userRanking: UserRanking = {
+      id: userId.toString(),
+      userId: userId.toString(),
+      username: 'User', // This should come from user data
+      position: userPosition,
+      score: userScore.totalScore,
+      level: userLevel,
+      badges: [],
+      achievements: [],
+      monthlyScore: monthlyScore?.monthly_savings || 0,
+      totalSavings,
+      savingsRate,
+      goalsCompleted: goalsCompleted?.count || 0,
+      streakDays,
+      lastActivity: new Date().toISOString(),
+      joinedAt: new Date().toISOString()
+    };
+
+    const achievements = await this.getAchievements(userId);
+    const badges = await this.getBadges(userId);
+
+    const rankingStats = {
+      totalUsers: allScores.length,
+      averageScore: Math.round(allScoreValues.reduce((sum, score) => sum + score, 0) / allScores.length),
+      topScore: Math.max(...allScoreValues),
+      userPercentile: percentile
+    };
+
     return {
       userRanking,
       globalLeaderboard,
       friendsLeaderboard,
       categoryLeaderboards,
-      achievements: mockAchievements,
-      availableBadges: mockBadges,
-      contributionData,
-      rankingStats: {
-        totalUsers: userRankings.length,
-        averageScore: Math.round(userRankings.reduce((sum, u) => sum + u.score, 0) / userRankings.length),
-        topScore: Math.max(...userRankings.map(u => u.score)),
-        userPercentile: this.calculatePercentile(userRanking.score)
-      }
+      achievements,
+      availableBadges: badges,
+      rankingStats
     };
   }
 
   // Get global leaderboard
-  static getGlobalLeaderboard(filters?: RankingFilters): LeaderboardEntry[] {
-    return userRankings
-      .sort((a, b) => b.score - a.score)
-      .map((user, index) => ({
-        position: index + 1,
-        userId: user.userId,
-        username: user.username,
-        ...(user.avatar && { avatar: user.avatar }),
-        score: user.score,
-        level: user.level,
-        league: this.calculateLeague(user.score),
-        change: Math.floor(Math.random() * 6) - 3, // Random change for demo
-        trend: this.getTrend(Math.floor(Math.random() * 6) - 3)
-      }));
+  static async getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
+    const db = database;
+    
+    const leaderboard = await db.all(`
+      SELECT 
+        u.id,
+        u.name as username,
+        u.email,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      LEFT JOIN goals g ON u.id = g.user_id
+      GROUP BY u.id, u.name, u.email
+      ORDER BY total_savings DESC
+      LIMIT 10
+    `, []) as any[];
+
+    return leaderboard.map((user, index) => ({
+      position: index + 1,
+      userId: user.id.toString(),
+      username: user.username,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+      score: user.total_savings,
+      level: calculateLevel(user.total_savings),
+      league: calculateLeague(user.total_savings),
+      change: Math.floor(Math.random() * 3) - 1,
+      trend: getTrend(Math.floor(Math.random() * 3) - 1)
+    }));
   }
 
-  // Get friends leaderboard (mock - returns subset)
-  static getFriendsLeaderboard(userId: string): LeaderboardEntry[] {
-    return userRankings
-      .slice(0, 3) // Mock friends
-      .sort((a, b) => b.score - a.score)
-      .map((user, index) => ({
-        position: index + 1,
-        userId: user.userId,
-        username: user.username,
-        ...(user.avatar && { avatar: user.avatar }),
-        score: user.score,
-        level: user.level,
-        league: this.calculateLeague(user.score),
-        change: Math.floor(Math.random() * 4) - 2,
-        trend: this.getTrend(Math.floor(Math.random() * 4) - 2)
-      }));
+  // Get friends leaderboard
+  static async getFriendsLeaderboard(userId: number): Promise<LeaderboardEntry[]> {
+    const db = database;
+    
+    // For demo purposes, return top 5 users excluding the current user
+    const leaderboard = await db.all(`
+      SELECT 
+        u.id,
+        u.name as username,
+        u.email,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      LEFT JOIN goals g ON u.id = g.user_id
+      WHERE u.id != ?
+      GROUP BY u.id, u.name, u.email
+      ORDER BY total_savings DESC
+      LIMIT 5
+    `, [userId]) as any[];
+
+    return leaderboard.map((user, index) => ({
+      position: index + 1,
+      userId: user.id.toString(),
+      username: user.username,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+      score: user.total_savings,
+      level: calculateLevel(user.total_savings),
+      league: calculateLeague(user.total_savings),
+      change: Math.floor(Math.random() * 2) - 1,
+      trend: getTrend(Math.floor(Math.random() * 2) - 1)
+    }));
   }
 
   // Get category leaderboards
-  static getCategoryLeaderboards(): {
+  static async getCategoryLeaderboards(): Promise<{
     savings: LeaderboardEntry[];
     goals: LeaderboardEntry[];
     consistency: LeaderboardEntry[];
-  } {
-    const savingsLeaderboard = userRankings
-      .sort((a, b) => b.totalSavings - a.totalSavings)
-      .slice(0, 10)
-      .map((user, index) => ({
-        position: index + 1,
-        userId: user.userId,
-        username: user.username,
-        ...(user.avatar && { avatar: user.avatar }),
-        score: user.totalSavings,
-        level: user.level,
-        league: this.calculateLeague(user.score),
-        change: Math.floor(Math.random() * 4) - 2,
-        trend: this.getTrend(Math.floor(Math.random() * 4) - 2)
-      }));
+  }> {
+    const db = database;
+    
+    // Savings leaderboard
+    const savingsLeaderboard = await db.all(`
+      SELECT 
+        u.id,
+        u.name as username,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      GROUP BY u.id, u.name
+      ORDER BY total_savings DESC
+      LIMIT 10
+    `, []) as any[];
 
-    const goalsLeaderboard = userRankings
-      .sort((a, b) => b.goalsCompleted - a.goalsCompleted)
-      .slice(0, 10)
-      .map((user, index) => ({
-        position: index + 1,
-        userId: user.userId,
-        username: user.username,
-        ...(user.avatar && { avatar: user.avatar }),
-        score: user.goalsCompleted,
-        level: user.level,
-        league: this.calculateLeague(user.score),
-        change: Math.floor(Math.random() * 3) - 1,
-        trend: this.getTrend(Math.floor(Math.random() * 3) - 1)
-      }));
+    // Goals leaderboard
+    const goalsLeaderboard = await db.all(`
+      SELECT 
+        u.id,
+        u.name as username,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed
+      FROM users u
+      LEFT JOIN goals g ON u.id = g.user_id
+      GROUP BY u.id, u.name
+      ORDER BY goals_completed DESC
+      LIMIT 10
+    `, []) as any[];
 
-    const consistencyLeaderboard = userRankings
-      .sort((a, b) => b.streakDays - a.streakDays)
-      .slice(0, 10)
-      .map((user, index) => ({
-        position: index + 1,
-        userId: user.userId,
-        username: user.username,
-        ...(user.avatar && { avatar: user.avatar }),
-        score: user.streakDays,
-        level: user.level,
-        league: this.calculateLeague(user.score),
-        change: Math.floor(Math.random() * 5) - 2,
-        trend: this.getTrend(Math.floor(Math.random() * 5) - 2)
-      }));
+    // Consistency leaderboard (based on transaction frequency)
+    const consistencyLeaderboard = await db.all(`
+      SELECT 
+        u.id,
+        u.name as username,
+        COUNT(DISTINCT DATE(t.date)) as active_days
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      WHERE t.date >= date('now', '-30 days')
+      GROUP BY u.id, u.name
+      ORDER BY active_days DESC
+      LIMIT 10
+    `, []) as any[];
 
     return {
-      savings: savingsLeaderboard,
-      goals: goalsLeaderboard,
-      consistency: consistencyLeaderboard
+      savings: savingsLeaderboard.map((user, index) => ({
+        position: index + 1,
+        userId: user.id.toString(),
+        username: user.username,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+        score: user.total_savings,
+        level: calculateLevel(user.total_savings),
+        league: calculateLeague(user.total_savings),
+        change: Math.floor(Math.random() * 4) - 2,
+        trend: getTrend(Math.floor(Math.random() * 4) - 2)
+      })),
+      goals: goalsLeaderboard.map((user, index) => ({
+        position: index + 1,
+        userId: user.id.toString(),
+        username: user.username,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+        score: user.goals_completed,
+        level: calculateLevel(user.goals_completed * 100),
+        league: calculateLeague(user.goals_completed * 100),
+        change: Math.floor(Math.random() * 3) - 1,
+        trend: getTrend(Math.floor(Math.random() * 3) - 1)
+      })),
+      consistency: consistencyLeaderboard.map((user, index) => ({
+        position: index + 1,
+        userId: user.id.toString(),
+        username: user.username,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+        score: user.active_days,
+        level: calculateLevel(user.active_days * 50),
+        league: calculateLeague(user.active_days * 50),
+        change: Math.floor(Math.random() * 5) - 2,
+        trend: getTrend(Math.floor(Math.random() * 5) - 2)
+      }))
     };
   }
 
   // Get user ranking by ID
-  static getUserRanking(userId: string): UserRanking | null {
-    return userRankings.find(u => u.userId === userId) || null;
+  static async getUserRanking(userId: number): Promise<UserRanking | null> {
+    const db = database;
+    
+    const user = await db.get(`
+      SELECT 
+        u.id,
+        u.name as username,
+        u.email,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      LEFT JOIN goals g ON u.id = g.user_id
+      WHERE u.id = ?
+      GROUP BY u.id, u.name, u.email
+    `, [userId]) as any;
+
+    if (!user) return null;
+
+    // Get user position
+    const allUsers = await db.all(`
+      SELECT 
+        u.id,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      GROUP BY u.id
+      ORDER BY total_savings DESC
+    `, []) as any[];
+
+    const position = allUsers.findIndex(u => u.id === userId) + 1;
+    const score = await this.calculateScore(userId);
+
+    return {
+      id: user.id.toString(),
+      userId: user.id.toString(),
+      username: user.username,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+      position,
+      score: score.totalScore,
+      level: calculateLevel(score.totalScore),
+      badges: await this.getBadges(userId),
+      achievements: await this.getAchievements(userId),
+      monthlyScore: 0, // Would need monthly calculation
+      totalSavings: user.total_savings,
+      savingsRate: 0, // Would need calculation
+      goalsCompleted: user.goals_completed,
+      streakDays: 0, // Would need streak calculation
+      lastActivity: new Date().toISOString(),
+      joinedAt: new Date().toISOString()
+    };
   }
 
   // Calculate user score
-  static calculateScore(userId: string): ScoreCalculation {
-    const user = userRankings.find(u => u.userId === userId);
-    if (!user) {
+  static async calculateScore(userId: number): Promise<ScoreCalculation> {
+    const db = database;
+    
+    const userData = await db.get(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) -
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_savings,
+        COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as goals_completed,
+        COUNT(DISTINCT DATE(t.date)) as active_days
+      FROM users u
+      LEFT JOIN transactions t ON u.id = t.user_id
+      LEFT JOIN goals g ON u.id = g.user_id
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [userId]) as any;
+
+    if (!userData) {
       throw new Error('User not found');
     }
 
-    const savingsScore = Math.round(user.totalSavings * 0.1);
-    const goalsScore = user.goalsCompleted * 50;
-    const consistencyScore = user.streakDays * 5;
-    const bonusScore = user.badges.length * 25;
+    const savingsScore = Math.round(userData.total_savings * 0.1);
+    const goalsScore = userData.goals_completed * 50;
+    const consistencyScore = userData.active_days * 5;
+    const bonusScore = 0; // Would need badges calculation
     const totalScore = savingsScore + goalsScore + consistencyScore + bonusScore;
 
     return {
@@ -372,68 +418,42 @@ export class RankingService {
         {
           category: 'Economia Total',
           points: savingsScore,
-          description: `R$ ${user.totalSavings.toLocaleString('pt-BR')} economizados`
+          description: `R$ ${userData.total_savings.toLocaleString('pt-BR')} economizados`
         },
         {
           category: 'Metas Completadas',
           points: goalsScore,
-          description: `${user.goalsCompleted} metas alcançadas`
+          description: `${userData.goals_completed} metas alcançadas`
         },
         {
           category: 'Consistência',
           points: consistencyScore,
-          description: `${user.streakDays} dias de sequência`
+          description: `${userData.active_days} dias ativos`
         },
         {
           category: 'Conquistas',
           points: bonusScore,
-          description: `${user.badges.length} badges conquistadas`
+          description: `0 badges conquistadas`
         }
       ]
     };
   }
 
-  // Update user score
-  static updateUserScore(userId: string, scoreData: Partial<ScoreCalculation>): UserRanking | null {
-    const userIndex = userRankings.findIndex(u => u.userId === userId);
-    if (userIndex === -1) return null;
-
-    if (scoreData.totalScore && userRankings[userIndex]) {
-      userRankings[userIndex].score = scoreData.totalScore;
-      userRankings[userIndex].lastActivity = new Date().toISOString();
-      
-      // Recalculate positions
-      userRankings.sort((a, b) => b.score - a.score);
-      userRankings.forEach((user, index) => {
-        user.position = index + 1;
-      });
-    }
-
-    return userRankings[userIndex] || null;
+  // Update user score (simplified - would need proper implementation)
+  static async updateUserScore(userId: number, scoreData: Partial<ScoreCalculation>): Promise<UserRanking | null> {
+    // For now, just return the current user ranking
+    return await this.getUserRanking(userId);
   }
 
-  // Get achievements
-  static getAchievements(userId: string): Achievement[] {
-    const user = userRankings.find(u => u.userId === userId);
-    return user ? user.achievements : [];
+  // Get achievements (simplified - returning empty for now)
+  static async getAchievements(userId: number): Promise<Achievement[]> {
+    // This would need a proper achievements system in the database
+    return [];
   }
 
-  // Get badges
-  static getBadges(userId: string): Badge[] {
-    const user = userRankings.find(u => u.userId === userId);
-    return user ? user.badges : [];
-  }
-
-  // Helper methods
-  private static getTrend(change: number): 'up' | 'down' | 'same' {
-    if (change > 0) return 'up';
-    if (change < 0) return 'down';
-    return 'same';
-  }
-
-  private static calculatePercentile(score: number): number {
-    const sortedScores = userRankings.map(u => u.score).sort((a, b) => a - b);
-    const rank = sortedScores.findIndex(s => s >= score) + 1;
-    return Math.round((rank / sortedScores.length) * 100);
+  // Get badges (simplified - returning empty for now)
+  static async getBadges(userId: number): Promise<Badge[]> {
+    // This would need a proper badges system in the database
+    return [];
   }
 }

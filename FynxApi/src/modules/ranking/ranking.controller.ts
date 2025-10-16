@@ -5,8 +5,8 @@ export class RankingController {
   // GET /api/v1/ranking - Get complete ranking data
   static async getRankingData(req: Request, res: Response) {
     try {
-      const userId = req.query.userId as string || 'user1';
-      const rankingData = RankingService.getRankingData(userId);
+      const userId = parseInt(req.query.userId as string) || 1;
+      const rankingData = await RankingService.getRankingData(userId);
       
       res.status(200).json({
         success: true,
@@ -24,7 +24,7 @@ export class RankingController {
   // GET /api/v1/ranking/leaderboard/global - Get global leaderboard
   static async getGlobalLeaderboard(req: Request, res: Response) {
     try {
-      const leaderboard = RankingService.getGlobalLeaderboard();
+      const leaderboard = await RankingService.getGlobalLeaderboard();
       
       res.status(200).json({
         success: true,
@@ -42,8 +42,8 @@ export class RankingController {
   // GET /api/v1/ranking/leaderboard/friends - Get friends leaderboard
   static async getFriendsLeaderboard(req: Request, res: Response) {
     try {
-      const userId = req.query.userId as string || 'user1';
-      const leaderboard = RankingService.getFriendsLeaderboard(userId);
+      const userId = parseInt(req.query.userId as string) || 1;
+      const leaderboard = await RankingService.getFriendsLeaderboard(userId);
       
       res.status(200).json({
         success: true,
@@ -61,7 +61,7 @@ export class RankingController {
   // GET /api/v1/ranking/leaderboard/categories - Get category leaderboards
   static async getCategoryLeaderboards(req: Request, res: Response) {
     try {
-      const leaderboards = RankingService.getCategoryLeaderboards();
+      const leaderboards = await RankingService.getCategoryLeaderboards();
       
       res.status(200).json({
         success: true,
@@ -79,11 +79,15 @@ export class RankingController {
   // GET /api/v1/ranking/user/:userId - Get specific user ranking
   static async getUserRanking(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      if (!userId) {
+      const userIdParam = req.params.userId;
+      if (!userIdParam) {
         return res.status(400).json({ error: 'User ID parameter is required' });
       }
-      const userRanking = RankingService.getUserRanking(userId);
+      const userId = parseInt(userIdParam);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Valid User ID parameter is required' });
+      }
+      const userRanking = await RankingService.getUserRanking(userId);
       
       if (!userRanking) {
         return res.status(404).json({
@@ -108,11 +112,15 @@ export class RankingController {
   // GET /api/v1/ranking/score/:userId - Calculate user score
   static async calculateUserScore(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      if (!userId) {
+      const userIdParam = req.params.userId;
+      if (!userIdParam) {
         return res.status(400).json({ error: 'User ID parameter is required' });
       }
-      const scoreCalculation = RankingService.calculateScore(userId);
+      const userId = parseInt(userIdParam);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Valid User ID parameter is required' });
+      }
+      const scoreCalculation = await RankingService.calculateScore(userId);
       
       res.status(200).json({
         success: true,
@@ -130,13 +138,17 @@ export class RankingController {
   // PUT /api/v1/ranking/score/:userId - Update user score
   static async updateUserScore(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      if (!userId) {
+      const userIdParam = req.params.userId;
+      if (!userIdParam) {
         return res.status(400).json({ error: 'User ID parameter is required' });
+      }
+      const userId = parseInt(userIdParam);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Valid User ID parameter is required' });
       }
       const scoreData = req.body;
       
-      const updatedRanking = RankingService.updateUserScore(userId, scoreData);
+      const updatedRanking = await RankingService.updateUserScore(userId, scoreData);
       
       if (!updatedRanking) {
         return res.status(404).json({
@@ -162,11 +174,15 @@ export class RankingController {
   // GET /api/v1/ranking/achievements/:userId - Get user achievements
   static async getUserAchievements(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      if (!userId) {
+      const userIdParam = req.params.userId;
+      if (!userIdParam) {
         return res.status(400).json({ error: 'User ID parameter is required' });
       }
-      const achievements = RankingService.getAchievements(userId);
+      const userId = parseInt(userIdParam);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Valid User ID parameter is required' });
+      }
+      const achievements = await RankingService.getAchievements(userId);
       
       res.status(200).json({
         success: true,
@@ -184,11 +200,15 @@ export class RankingController {
   // GET /api/v1/ranking/badges/:userId - Get user badges
   static async getUserBadges(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      if (!userId) {
+      const userIdParam = req.params.userId;
+      if (!userIdParam) {
         return res.status(400).json({ error: 'User ID parameter is required' });
       }
-      const badges = RankingService.getBadges(userId);
+      const userId = parseInt(userIdParam);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Valid User ID parameter is required' });
+      }
+      const badges = await RankingService.getBadges(userId);
       
       res.status(200).json({
         success: true,

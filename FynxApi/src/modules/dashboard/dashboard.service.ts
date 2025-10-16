@@ -5,6 +5,8 @@
 
  */
 
+import type { Database } from 'sqlite3';
+import { database } from '../../database/database.js';
 import type {
   DashboardData,
   Transaction,
@@ -15,110 +17,269 @@ import type {
   MonthlyData,
 } from './dashboard.types.js';
 
-// Simula um banco de dados de transações em memória.
-let transactions: Transaction[] = [
-  { id: 1, description: "Salário TESTE", type: 'income', status: 'completed', amount: 5200.00, date: "2025-01-26", category: "Salário" },
-  { id: 2, description: "Aluguel", type: 'expense', status: 'completed', amount: 1200.00, date: "2025-01-25", category: "Moradia" },
-  { id: 3, description: "Retorno de Investimento", type: 'income', status: 'pending', amount: 850.00, date: "2025-01-24", category: "Investimento" },
-  { id: 4, description: "Supermercado", type: 'expense', status: 'completed', amount: 320.50, date: "2025-01-23", category: "Alimentação" },
-];
+// Database row interfaces
+interface CategoryRow {
+  category: string;
+  total: number;
+}
+
+interface DailyRow {
+  date: string;
+  income: number;
+  expense: number;
+}
+
+interface MonthlyRow {
+  month_key: string;
+  month_num: string | undefined;
+  income: number;
+  expense: number;
+}
+
+interface TransactionRow {
+  id: number;
+  description: string;
+  type: string;
+  amount: number;
+  category: string;
+  date: string;
+}
 
 /**
  * Calcula os dados do overview (Balanço Total, Renda Mensal, Despesas Mensais, Taxa de Poupança).
- * @returns {OverviewData[]} Os dados calculados para o overview.
+ * @param {number} userId - ID do usuário.
+ * @returns {Promise<OverviewData[]>} Os dados calculados para o overview.
  */
-const calculateOverview = (): OverviewData[] => {
-  const monthlyIncome = transactions
-    .filter(t => t.type === 'income' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
+const calculateOverview = async (userId: number): Promise<OverviewData[]> => {
+  const db = database;
+  
+  // Calcula renda mensal do mês atual
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const monthlyIncomeResult = await db.get(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'income'
+    AND strftime('%Y-%m', date) = ?
+  `, [userId, currentMonth]);
+  
+  // Calcula despesas mensais do mês atual
+  const monthlyExpensesResult = await db.get(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'expense'
+    AND strftime('%Y-%m', date) = ?
+  `, [userId, currentMonth]);
+  
+  // Calcula dados do mês anterior para comparação
+  const lastMonth = new Date();
+  lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const lastMonthStr = lastMonth.toISOString().slice(0, 7);
+  
+  const lastMonthIncomeResult = await db.get(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'income'
+    AND strftime('%Y-%m', date) = ?
+  `, [userId, lastMonthStr]);
+  
+  const lastMonthExpensesResult = await db.get(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'expense'
+    AND strftime('%Y-%m', date) = ?
+  `, [userId, lastMonthStr]);
 
-  const monthlyExpenses = transactions
-    .filter(t => t.type === 'expense' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
-
+  const monthlyIncome = monthlyIncomeResult?.total || 0;
+  const monthlyExpenses = monthlyExpensesResult?.total || 0;
+  const lastMonthIncome = lastMonthIncomeResult?.total || 0;
+  const lastMonthExpenses = lastMonthExpensesResult?.total || 0;
+  
   const totalBalance = monthlyIncome - monthlyExpenses;
+  const lastMonthBalance = lastMonthIncome - lastMonthExpenses;
   const savingsRate = monthlyIncome > 0 ? (totalBalance / monthlyIncome) * 100 : 0;
+  const lastMonthSavingsRate = lastMonthIncome > 0 ? (lastMonthBalance / lastMonthIncome) * 100 : 0;
 
-  // Mock de dados de comparação com o mês anterior.
+  // Calcula mudanças percentuais
+  const balanceChange = lastMonthBalance !== 0 ? ((totalBalance - lastMonthBalance) / Math.abs(lastMonthBalance)) * 100 : 0;
+  const incomeChange = lastMonthIncome !== 0 ? ((monthlyIncome - lastMonthIncome) / lastMonthIncome) * 100 : 0;
+  const expensesChange = lastMonthExpenses !== 0 ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 0;
+  const savingsChange = savingsRate - lastMonthSavingsRate;
+
   return [
-    { title: "Total Balance", value: `$${totalBalance.toFixed(2)}`, change: "+12.5% vs last month", trend: 'up' },
-    { title: "Monthly Income", value: `$${monthlyIncome.toFixed(2)}`, change: "+6.2% vs last month", trend: 'up' },
-    { title: "Monthly Expenses", value: `$${monthlyExpenses.toFixed(2)}`, change: "+5.1% vs last month", trend: 'up' },
-    { title: "Savings Rate", value: `${savingsRate.toFixed(1)}%`, change: "+2.1% steady growth", trend: 'up' },
+    { 
+      title: "Monthly Balance", 
+      value: `$${totalBalance.toFixed(2)}`, 
+      change: `${balanceChange >= 0 ? '+' : ''}${balanceChange.toFixed(1)}% vs last month`, 
+      trend: balanceChange >= 0 ? 'up' : 'down' 
+    },
+    { 
+      title: "Total Income", 
+      value: `$${monthlyIncome.toFixed(2)}`, 
+      change: `${incomeChange >= 0 ? '+' : ''}${incomeChange.toFixed(1)}% vs last month`, 
+      trend: incomeChange >= 0 ? 'up' : 'down' 
+    },
+    { 
+      title: "Total Expense", 
+      value: `$${monthlyExpenses.toFixed(2)}`, 
+      change: `${expensesChange >= 0 ? '+' : ''}${expensesChange.toFixed(1)}% vs last month`, 
+      trend: expensesChange <= 0 ? 'up' : 'down' // Menos despesas é melhor
+    },
+    { 
+      title: "Saving Rate", 
+      value: `${savingsRate.toFixed(1)}%`, 
+      change: `${savingsChange >= 0 ? '+' : ''}${savingsChange.toFixed(1)}% vs last month`, 
+      trend: savingsChange >= 0 ? 'up' : 'down' 
+    },
   ];
 };
 
 /**
  * Agrupa as transações por categoria.
- * @returns {{ spendingByCategory: SpendingCategory[], incomeByCategory: IncomeCategory[] }} As transações agrupadas.
+ * @param {number} userId - ID do usuário.
+ * @returns {Promise<{ spendingByCategory: SpendingCategory[], incomeByCategory: IncomeCategory[] }>} As transações agrupadas.
  */
-const getCategoryData = (): { spendingByCategory: SpendingCategory[], incomeByCategory: IncomeCategory[] } => {
-  const spendingByCategory: SpendingCategory[] = [];
-  const incomeByCategory: IncomeCategory[] = [];
+const getCategoryData = async (userId: number): Promise<{ spendingByCategory: SpendingCategory[], incomeByCategory: IncomeCategory[] }> => {
+  const db = database;
+  
+  // Busca gastos por categoria do mês atual
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const spendingResults = await db.all(`
+    SELECT category, SUM(amount) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'expense'
+    AND strftime('%Y-%m', date) = ?
+    GROUP BY category
+    ORDER BY total DESC
+  `, [userId, currentMonth]);
+  
+  // Busca receitas por categoria do mês atual
+  const incomeResults = await db.all(`
+    SELECT category, SUM(amount) as total
+    FROM transactions 
+    WHERE user_id = ? AND type = 'income'
+    AND strftime('%Y-%m', date) = ?
+    GROUP BY category
+    ORDER BY total DESC
+  `, [userId, currentMonth]);
 
-  transactions.forEach(t => {
-    if (t.status === 'completed') {
-      if (t.type === 'expense') {
-        const existing = spendingByCategory.find(c => c.category === t.category);
-        if (existing) {
-          existing.value += t.amount;
-        } else {
-          spendingByCategory.push({ category: t.category, value: t.amount });
-        }
-      } else if (t.type === 'income') {
-        const existing = incomeByCategory.find(c => c.category === t.category);
-        if (existing) {
-          existing.value += t.amount;
-        } else {
-          incomeByCategory.push({ category: t.category, value: t.amount });
-        }
-      }
-    }
-  });
+  const spendingByCategory: SpendingCategory[] = spendingResults.map((row: CategoryRow) => ({
+    category: row.category,
+    value: row.total
+  }));
+  
+  const incomeByCategory: IncomeCategory[] = incomeResults.map((row: CategoryRow) => ({
+    category: row.category,
+    value: row.total
+  }));
 
   return { spendingByCategory, incomeByCategory };
 };
 
 /**
- * Gera dados diários e mensais mocados para os gráficos.
- * @returns {{ dailyPerformance: DailyData[], monthlyPerformance: MonthlyData[] }} Os dados gerados.
+ * Gera dados diários e mensais reais para os gráficos.
+ * @param {number} userId - ID do usuário.
+ * @returns {Promise<{ dailyPerformance: DailyData[], monthlyPerformance: MonthlyData[] }>} Os dados gerados.
  */
-const getPerformanceData = (): { dailyPerformance: DailyData[], monthlyPerformance: MonthlyData[] } => {
-  // Gera dados diários começando em 04/09/2025
-  const startDate = new Date('2025-09-04'); // 04/09/2025
-  const dailyPerformance: DailyData[] = Array.from({ length: 30 }, (_, i) => {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + i);
+const getPerformanceData = async (userId: number): Promise<{ dailyPerformance: DailyData[], monthlyPerformance: MonthlyData[] }> => {
+  const db = database;
+  
+  // Busca dados diários dos últimos 30 dias
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+  
+  const dailyResults = await db.all(`
+    SELECT 
+      date,
+      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
+      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense
+    FROM transactions 
+    WHERE user_id = ? AND date >= ?
+    GROUP BY date
+    ORDER BY date ASC
+  `, [userId, thirtyDaysAgoStr]);
+  
+  // Preenche dias sem transações com valores zero
+  const dailyPerformance: DailyData[] = [];
+  for (let i = 0; i < 30; i++) {
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() - (29 - i));
+    const dateStr = currentDate.toISOString().split('T')[0] || '';
     
-    return {
+    const dayData = dailyResults.find(row => row.date === dateStr);
+    dailyPerformance.push({
       day: `${currentDate.getDate()}`,
-      date: currentDate.toISOString().split('T')[0] as string, // YYYY-MM-DD format
-      income: Math.floor(Math.random() * 1000) + 200, // Entre 200-1200
-      expense: Math.floor(Math.random() * 500) + 100,  // Entre 100-600
-    };
-  });
-
-  const monthlyPerformance: MonthlyData[] = [
-    { month: "Jul", income: 15200, expense: 12400 },
-    { month: "Ago", income: 14800, expense: 11200 },
-    { month: "Set", income: 16500, expense: 13800 },
-  ];
+      date: dateStr,
+      income: dayData?.income || 0,
+      expense: dayData?.expense || 0,
+    });
+  }
+  
+  // Busca dados mensais dos últimos 3 meses
+  const monthlyResults = await db.all(`
+    SELECT 
+      strftime('%Y-%m', date) as month_key,
+      strftime('%m', date) as month_num,
+      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
+      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense
+    FROM transactions 
+    WHERE user_id = ? AND date >= date('now', '-3 months')
+    GROUP BY strftime('%Y-%m', date)
+    ORDER BY month_key ASC
+  `, [userId]);
+  
+  const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthlyPerformance: MonthlyData[] = monthlyResults.map((row: MonthlyRow) => ({
+    month: row.month_num ? monthNames[parseInt(row.month_num) - 1] || 'N/A' : 'N/A',
+    income: row.income,
+    expense: row.expense
+  }));
 
   return { dailyPerformance, monthlyPerformance };
 };
 
 /**
- * Busca todos os dados do dashboard.
- * @returns {DashboardData} Os dados completos do dashboard.
+ * Busca transações recentes do usuário.
+ * @param {number} userId - ID do usuário.
+ * @param {number} limit - Número de transações a retornar.
+ * @returns {Promise<Transaction[]>} As transações recentes.
  */
-export const getDashboardData = (): DashboardData => {
-  const overview = calculateOverview();
-  const { spendingByCategory, incomeByCategory } = getCategoryData();
-  const { dailyPerformance, monthlyPerformance } = getPerformanceData();
+const getRecentTransactions = async (userId: number, limit: number = 4): Promise<Transaction[]> => {
+  const db = database;
+  
+  const results = await db.all(`
+    SELECT id, description, type, amount, date, category
+    FROM transactions 
+    WHERE user_id = ?
+    ORDER BY date DESC, id DESC
+    LIMIT ?
+  `, [userId, limit]);
+  
+  return results.map((row: TransactionRow) => ({
+    id: row.id,
+    description: row.description,
+    type: row.type as 'income' | 'expense',
+    status: 'completed' as 'completed' | 'pending',
+    amount: row.amount,
+    date: row.date,
+    category: row.category
+  }));
+};
+
+/**
+ * Busca todos os dados do dashboard.
+ * @param {number} userId - ID do usuário.
+ * @returns {Promise<DashboardData>} Os dados completos do dashboard.
+ */
+export const getDashboardData = async (userId: number): Promise<DashboardData> => {
+  const overview = await calculateOverview(userId);
+  const { spendingByCategory, incomeByCategory } = await getCategoryData(userId);
+  const { dailyPerformance, monthlyPerformance } = await getPerformanceData(userId);
+  const recentTransactions = await getRecentTransactions(userId);
   
   return {
     overview,
-    recentTransactions: transactions.slice(0, 4), // Retorna as 4 transações mais recentes.
+    recentTransactions,
     spendingByCategory,
     incomeByCategory,
     dailyPerformance,
@@ -128,22 +289,49 @@ export const getDashboardData = (): DashboardData => {
 
 /**
  * Adiciona uma nova transação.
+ * @param {number} userId - ID do usuário.
  * @param {Omit<Transaction, 'id'>} transactionData - Os dados da nova transação.
- * @returns {Transaction} A transação criada.
+ * @returns {Promise<Transaction>} A transação criada.
  */
-export const addTransaction = (transactionData: Omit<Transaction, 'id'>): Transaction => {
+export const addTransaction = async (userId: number, transactionData: Omit<Transaction, 'id'>): Promise<Transaction> => {
+  const db = database;
+  
+  const result = await db.run(`
+    INSERT INTO transactions (user_id, description, type, amount, date, category)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, [userId, transactionData.description, transactionData.type, 
+      transactionData.amount, transactionData.date, transactionData.category]);
+  
   const newTransaction: Transaction = {
-    id: transactions.length + 1,
+    id: result.lastID!,
     ...transactionData,
   };
-  transactions.push(newTransaction);
+  
   return newTransaction;
 };
 
 /**
- * Retorna o histórico de transações.
- * @returns {Transaction[]} O histórico de transações.
+ * Retorna o histórico de transações do usuário.
+ * @param {number} userId - ID do usuário.
+ * @returns {Promise<Transaction[]>} O histórico de transações.
  */
-export const getTransactionHistory = (): Transaction[] => {
-  return transactions;
+export const getTransactionHistory = async (userId: number): Promise<Transaction[]> => {
+  const db = database;
+  
+  const results = await db.all(`
+    SELECT id, description, type, amount, date, category
+    FROM transactions 
+    WHERE user_id = ?
+    ORDER BY date DESC, id DESC
+  `, [userId]);
+  
+  return results.map((row: TransactionRow) => ({
+    id: row.id,
+    description: row.description,
+    type: row.type as 'income' | 'expense',
+    status: 'completed' as 'completed' | 'pending',
+    amount: row.amount,
+    date: row.date,
+    category: row.category
+  }));
 };

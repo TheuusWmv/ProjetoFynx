@@ -4,127 +4,166 @@ import type {
   UpdateSpendingLimitRequest,
   UpdateSpendingLimitProgressRequest
 } from './spending-limits.types.js';
+import { database } from '../../database/database.js';
 
-// Mock data storage for spending limits
-let spendingLimits: SpendingLimit[] = [
-  {
-    id: '1',
-    category: 'Alimentação',
-    limitAmount: 800,
-    currentSpent: 650,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'active',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-20T00:00:00Z'
-  },
-  {
-    id: '2',
-    category: 'Transporte',
-    limitAmount: 400,
-    currentSpent: 450,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'exceeded',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-22T00:00:00Z'
-  },
-  {
-    id: '3',
-    category: 'Lazer',
-    limitAmount: 600,
-    currentSpent: 320,
-    period: 'monthly',
-    startDate: '2025-01-01',
-    endDate: '2025-01-31',
-    status: 'active',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-18T00:00:00Z'
-  }
-];
+// Helper function to format spending limit from database row
+function formatSpendingLimitFromDB(row: any): SpendingLimit {
+  return {
+    id: row.id.toString(),
+    category: row.category,
+    limitAmount: row.limit_amount,
+    currentSpent: row.current_spent,
+    period: row.period,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
 
 export class SpendingLimitsService {
   // Get all spending limits
-  static getSpendingLimits(): SpendingLimit[] {
-    return spendingLimits;
+  static async getSpendingLimits(): Promise<SpendingLimit[]> {
+    const db = database;
+    const rows = await db.all('SELECT * FROM spending_limits ORDER BY created_at DESC', []);
+    return rows.map(formatSpendingLimitFromDB);
   }
 
   // Get spending limit by ID
-  static getSpendingLimitById(id: string): SpendingLimit | null {
-    return spendingLimits.find(limit => limit.id === id) || null;
+  static async getSpendingLimitById(id: number): Promise<SpendingLimit | null> {
+    const db = database;
+    const row = await db.get('SELECT * FROM spending_limits WHERE id = ?', [id]);
+    return row ? formatSpendingLimitFromDB(row) : null;
   }
 
   // Get spending limit by category
-  static getSpendingLimitByCategory(category: string): SpendingLimit | null {
-    return spendingLimits.find(limit => limit.category === category) || null;
+  static async getSpendingLimitByCategory(category: string): Promise<SpendingLimit | null> {
+    const db = database;
+    const row = await db.get('SELECT * FROM spending_limits WHERE category = ?', [category]);
+    return row ? formatSpendingLimitFromDB(row) : null;
   }
 
   // Create new spending limit
-  static createSpendingLimit(data: CreateSpendingLimitRequest): SpendingLimit {
-    const newLimit: SpendingLimit = {
-      id: (spendingLimits.length + 1).toString(),
-      ...data,
-      currentSpent: 0,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+  static async createSpendingLimit(data: CreateSpendingLimitRequest): Promise<SpendingLimit> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    const result = await db.run(`
+      INSERT INTO spending_limits (
+        category, limit_amount, current_spent, period, 
+        start_date, end_date, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      data.category,
+      data.limitAmount,
+      0, // currentSpent starts at 0
+      data.period,
+      data.startDate,
+      data.endDate,
+      'active', // status starts as active
+      now,
+      now
+    ]);
 
-    spendingLimits.push(newLimit);
+    const newLimit = await this.getSpendingLimitById(result.lastID);
+    if (!newLimit) {
+      throw new Error('Failed to create spending limit');
+    }
+    
     return newLimit;
   }
 
   // Update spending limit
-  static updateSpendingLimit(id: string, data: UpdateSpendingLimitRequest): SpendingLimit | null {
-    const limitIndex = spendingLimits.findIndex(limit => limit.id === id);
-    if (limitIndex === -1) return null;
+  static async updateSpendingLimit(id: number, data: UpdateSpendingLimitRequest): Promise<SpendingLimit | null> {
+    const db = database;
+    const now = new Date().toISOString();
+    
+    // Get current limit to check if it exists
+    const currentLimit = await this.getSpendingLimitById(id);
+    if (!currentLimit) return null;
 
-    const currentLimit = spendingLimits[limitIndex]!;
-    const updatedLimit: SpendingLimit = {
-      ...currentLimit,
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Update status based on current spent vs limit
+    // Build update query dynamically
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    
+    if (data.category !== undefined) {
+      updateFields.push('category = ?');
+      updateValues.push(data.category);
+    }
     if (data.limitAmount !== undefined) {
-      updatedLimit.status = updatedLimit.currentSpent > data.limitAmount ? 'exceeded' : 'active';
+      updateFields.push('limit_amount = ?');
+      updateValues.push(data.limitAmount);
+    }
+    if (data.period !== undefined) {
+      updateFields.push('period = ?');
+      updateValues.push(data.period);
+    }
+    if (data.startDate !== undefined) {
+      updateFields.push('start_date = ?');
+      updateValues.push(data.startDate);
+    }
+    if (data.endDate !== undefined) {
+      updateFields.push('end_date = ?');
+      updateValues.push(data.endDate);
+    }
+    
+    updateFields.push('updated_at = ?');
+    updateValues.push(now);
+    updateValues.push(id);
+
+    // Update the spending limit
+    await db.run(`
+      UPDATE spending_limits 
+      SET ${updateFields.join(', ')} 
+      WHERE id = ?
+    `, updateValues);
+
+    // Get updated limit and recalculate status if limit amount changed
+    const updatedLimit = await this.getSpendingLimitById(id);
+    if (updatedLimit && data.limitAmount !== undefined) {
+      const newStatus = updatedLimit.currentSpent > data.limitAmount ? 'exceeded' : 'active';
+      await db.run('UPDATE spending_limits SET status = ? WHERE id = ?', [newStatus, id]);
+      updatedLimit.status = newStatus;
     }
 
-    spendingLimits[limitIndex] = updatedLimit;
     return updatedLimit;
   }
 
   // Update spending limit progress (add expense amount)
-  static updateSpendingLimitProgress(id: string, data: UpdateSpendingLimitProgressRequest): SpendingLimit | null {
-    const limitIndex = spendingLimits.findIndex(limit => limit.id === id);
-    if (limitIndex === -1) return null;
-
-    const limit = spendingLimits[limitIndex]!;
+  static async updateSpendingLimitProgress(id: number, data: UpdateSpendingLimitProgressRequest): Promise<SpendingLimit | null> {
+    const db = database;
+    const now = new Date().toISOString();
     
-    // Add the expense amount to current spent
-    limit.currentSpent = Math.max(0, limit.currentSpent + data.amount);
-    limit.updatedAt = new Date().toISOString();
+    // Get current limit
+    const currentLimit = await this.getSpendingLimitById(id);
+    if (!currentLimit) return null;
+    
+    // Calculate new current spent amount
+    const newCurrentSpent = Math.max(0, currentLimit.currentSpent + data.amount);
+    const newStatus = newCurrentSpent > currentLimit.limitAmount ? 'exceeded' : 'active';
+    
+    // Update the spending limit
+    await db.run(`
+      UPDATE spending_limits 
+      SET current_spent = ?, status = ?, updated_at = ? 
+      WHERE id = ?
+    `, [newCurrentSpent, newStatus, now, id]);
 
-    // Update status based on current spent vs limit
-    limit.status = limit.currentSpent > limit.limitAmount ? 'exceeded' : 'active';
-
-    return limit;
+    return await this.getSpendingLimitById(id);
   }
 
   // Delete spending limit
-  static deleteSpendingLimit(id: string): boolean {
-    const limitIndex = spendingLimits.findIndex(limit => limit.id === id);
-    if (limitIndex === -1) return false;
-
-    spendingLimits.splice(limitIndex, 1);
-    return true;
+  static async deleteSpendingLimit(id: number): Promise<boolean> {
+    const db = database;
+    const result = await db.run('DELETE FROM spending_limits WHERE id = ?', [id]);
+    return result.changes > 0;
   }
 
   // Get all categories from spending limits
-  static getCategories(): string[] {
-    return [...new Set(spendingLimits.map(limit => limit.category))];
+  static async getCategories(): Promise<string[]> {
+    const db = database;
+    const rows = await db.all('SELECT DISTINCT category FROM spending_limits ORDER BY category', []);
+    return rows.map((row: any) => row.category);
   }
 }

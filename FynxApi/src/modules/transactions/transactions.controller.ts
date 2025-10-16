@@ -6,9 +6,13 @@ export class TransactionsController {
   // GET /api/v1/transactions - Get all transactions with filters and pagination
   static async getTransactions(req: Request, res: Response) {
     try {
-      const userId = (req.query.userId as string) || 'user1';
+      const userId = parseInt(req.query.userId as string) || 1;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
+      
+      // Parâmetros de ordenação
+      const sortBy = req.query.sortBy as string || 'date';
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc' || 'desc';
       
       const filters: TransactionFilters = {
         ...(req.query.type && { type: req.query.type as 'income' | 'expense' | 'all' }),
@@ -30,11 +34,13 @@ export class TransactionsController {
         }
       });
 
-      const transactionsData = TransactionsService.getTransactions(userId, filters, page, limit);
+      const transactionsData = await TransactionsService.getTransactions(userId, filters, page, limit, sortBy, sortOrder);
       
+      // Formato compatível com Refine
       res.status(200).json({
-        success: true,
-        data: transactionsData
+        data: transactionsData.transactions || [],
+        total: transactionsData.totalCount || 0,
+        success: true
       });
     } catch (error) {
       res.status(500).json({
@@ -49,7 +55,7 @@ export class TransactionsController {
   static async getTransactionById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const userId = (req.query.userId as string) || 'user1';
+      const userId = parseInt(req.query.userId as string) || 1;
       
       if (!id) {
         return res.status(400).json({
@@ -58,7 +64,7 @@ export class TransactionsController {
         });
       }
       
-      const transaction = TransactionsService.getTransactionById(id, userId);
+      const transaction = await TransactionsService.getTransactionById(id, userId);
       
       if (!transaction) {
         return res.status(404).json({
@@ -67,8 +73,8 @@ export class TransactionsController {
         });
       }
       
+      // Formato compatível com Refine
       res.status(200).json({
-        success: true,
         data: transaction
       });
     } catch (error) {
@@ -83,15 +89,14 @@ export class TransactionsController {
   // POST /api/v1/transactions - Create new transaction
   static async createTransaction(req: Request, res: Response) {
     try {
-      const userId = req.body.userId || 'user1';
+      const userId = parseInt(req.body.userId) || 1;
       const transactionData: CreateTransactionRequest = req.body;
       
-      const newTransaction = TransactionsService.createTransaction(transactionData, userId);
+      const newTransaction = await TransactionsService.createTransaction(transactionData, userId);
       
+      // Formato compatível com Refine
       res.status(201).json({
-        success: true,
-        data: newTransaction,
-        message: 'Transação criada com sucesso'
+        data: newTransaction
       });
     } catch (error) {
       res.status(500).json({
@@ -106,7 +111,7 @@ export class TransactionsController {
   static async updateTransaction(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const userId = req.body.userId || 'user1';
+      const userId = parseInt(req.body.userId) || 1;
       const updateData: UpdateTransactionRequest = req.body;
       
       if (!id) {
@@ -116,7 +121,7 @@ export class TransactionsController {
         });
       }
       
-      const updatedTransaction = TransactionsService.updateTransaction(id, updateData, userId);
+      const updatedTransaction = await TransactionsService.updateTransaction(id, updateData, userId);
       
       if (!updatedTransaction) {
         return res.status(404).json({
@@ -125,10 +130,9 @@ export class TransactionsController {
         });
       }
       
+      // Formato compatível com Refine
       res.status(200).json({
-        success: true,
-        data: updatedTransaction,
-        message: 'Transação atualizada com sucesso'
+        data: updatedTransaction
       });
     } catch (error) {
       res.status(500).json({
@@ -143,7 +147,7 @@ export class TransactionsController {
   static async deleteTransaction(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const userId = (req.query.userId as string) || 'user1';
+      const userId = parseInt(req.query.userId as string) || 1;
       
       if (!id) {
         return res.status(400).json({
@@ -152,7 +156,7 @@ export class TransactionsController {
         });
       }
       
-      const deleted = TransactionsService.deleteTransaction(id, userId);
+      const deleted = await TransactionsService.deleteTransaction(id, userId);
       
       if (!deleted) {
         return res.status(404).json({
@@ -161,9 +165,9 @@ export class TransactionsController {
         });
       }
       
+      // Formato compatível com Refine
       res.status(200).json({
-        success: true,
-        message: 'Transação deletada com sucesso'
+        data: { id }
       });
     } catch (error) {
       res.status(500).json({
@@ -177,10 +181,10 @@ export class TransactionsController {
   // POST /api/v1/transactions/bulk - Bulk operations
   static async bulkOperation(req: Request, res: Response) {
     try {
-      const userId = req.body.userId || 'user1';
+      const userId = parseInt(req.body.userId) || 1;
       const operation: BulkTransactionOperation = req.body;
       
-      const result = TransactionsService.bulkOperation(operation, userId);
+      const result = await TransactionsService.bulkOperation(operation, userId);
       
       res.status(200).json({
         success: true,
@@ -199,7 +203,7 @@ export class TransactionsController {
   // GET /api/v1/transactions/categories - Get transaction categories
   static async getCategories(req: Request, res: Response) {
     try {
-      const categories = TransactionsService.getCategories();
+      const categories = await TransactionsService.getCategories();
       
       res.status(200).json({
         success: true,
@@ -217,30 +221,13 @@ export class TransactionsController {
   // GET /api/v1/transactions/summary - Get transactions summary
   static async getTransactionsSummary(req: Request, res: Response) {
     try {
-      const userId = req.query.userId as string || 'user1';
+      const userId = parseInt(req.query.userId as string) || 1;
       
-      const filters: TransactionFilters = {
-        type: req.query.type as any,
-        category: req.query.category as string,
-        dateFrom: req.query.dateFrom as string,
-        dateTo: req.query.dateTo as string
-      };
-
-      // Remove undefined values
-      Object.keys(filters).forEach(key => {
-        if (filters[key as keyof TransactionFilters] === undefined) {
-          delete filters[key as keyof TransactionFilters];
-        }
-      });
-
-      const transactionsData = TransactionsService.getTransactions(userId, filters, 1, 1000);
+      const summary = await TransactionsService.getTransactionsSummary(userId);
       
       res.status(200).json({
         success: true,
-        data: {
-          summary: transactionsData.summary,
-          stats: transactionsData.stats
-        }
+        data: summary
       });
     } catch (error) {
       res.status(500).json({
@@ -254,13 +241,13 @@ export class TransactionsController {
   // GET /api/v1/transactions/stats - Get transactions statistics
   static async getTransactionsStats(req: Request, res: Response) {
     try {
-      const userId = req.query.userId as string || 'user1';
+      const userId = parseInt(req.query.userId as string) || 1;
       
-      const transactionsData = TransactionsService.getTransactions(userId, {}, 1, 1000);
+      const stats = await TransactionsService.getTransactionsStats(userId);
       
       res.status(200).json({
         success: true,
-        data: transactionsData.stats
+        data: stats
       });
     } catch (error) {
       res.status(500).json({

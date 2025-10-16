@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AddTransactionSheet } from "@/components/AddTransactionSheet"
-import { useDashboard } from "@/hooks/useDashboard"
-import { useGoals } from "@/hooks/useGoals"
+import { useList } from "@refinedev/core"
+import { useDashboard, useDeleteTransaction } from "@/hooks/useDashboard"
 import { AddSpendingGoalSheet } from "@/components/AddSpendingGoalSheet"
 import { 
   Eye, TrendingUp, TrendingDown, Users, 
   ArrowUpRight, ArrowDownRight, Plus, 
-  MoreHorizontal, CheckCircle, Clock, AlertCircle, CalendarIcon 
+  MoreHorizontal, CheckCircle, Clock, AlertCircle, CalendarIcon, Trash2 
 } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis, PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, YAxis, Tooltip, Legend } from "recharts"
 import {
@@ -31,13 +31,20 @@ import {
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { DashboardData } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 // Map overview titles to icons from lucide-react
 const overviewIconMap: Record<string, React.ComponentType<any>> = {
   "Total Balance": Eye,
+  "Monthly Balance": Eye,
   "Monthly Income": TrendingUp,
+  "Total Income": TrendingUp,
   "Monthly Expenses": TrendingDown,
+  "Total Expense": TrendingDown,
+  "Total Expenses": TrendingDown,
   "Savings Rate": Users,
+  "Saving Rate": Users,
 }
 
 
@@ -63,10 +70,25 @@ const Index = () => {
   const [chartView, setChartView] = React.useState<"income" | "expense">("income")
   const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("12m")
   const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false)
-  const dashboard = useDashboard()
-  const goals = useGoals()
-  const data = dashboard.data
-  const goalsData = goals.data
+  const { data: dashboardData } = useDashboard()
+  const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useList({
+    resource: "goals/spending-goals",
+  })
+  const data = dashboardData as DashboardData
+  const { toast } = useToast()
+  const { mutate: deleteTransaction } = useDeleteTransaction()
+  const handleDelete = (id: number | string) => {
+    if (window.confirm("Tem certeza que deseja remover esta transação?")) {
+      deleteTransaction(id, {
+        onSuccess: () => {
+          toast({ title: "Transação removida", description: "A transação foi removida com sucesso." })
+        },
+        onError: () => {
+          toast({ title: "Erro ao remover", description: "Não foi possível remover a transação.", variant: "destructive" })
+        },
+      })
+    }
+  }
   
   // Estados para o Daily Comparison
   const [dateRange, setDateRange] = React.useState<{
@@ -143,8 +165,8 @@ const Index = () => {
           <h1 className="text-3xl font-bold text-foreground">Financial Overview</h1>
           <p className="text-muted-foreground">Track your financial performance</p>
         </div>
-        <AddTransactionSheet 
-          open={isAddTransactionOpen} 
+        <AddTransactionSheet
+          open={isAddTransactionOpen}
           onOpenChange={setIsAddTransactionOpen}
         >
           <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
@@ -402,13 +424,14 @@ const Index = () => {
           <CardContent>
             <div className="space-y-4">
               {/* Table Header */}
-              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-muted-foreground pb-2">
+              <div className="grid grid-cols-7 gap-4 text-sm font-medium text-muted-foreground pb-2">
                 <span>Description</span>
                 <span>Type</span>
                 <span>Status</span>
                 <span>Amount</span>
                 <span>Date</span>
                 <span>Category</span>
+                <span>Ações</span>
               </div>
               
               {/* Transaction Rows */}
@@ -421,7 +444,7 @@ const Index = () => {
                 const dateStr = isBackend ? format(new Date(transaction.date), 'MMM dd', { locale: ptBR }) : transaction.date
                 const typeLabel = isBackend ? (transaction.type === 'income' ? 'Income' : 'Expense') : transaction.type
                 return (
-                  <div key={transaction.id} className="grid grid-cols-6 gap-4 items-center py-3 border-b border-border last:border-0">
+                  <div key={transaction.id} className="grid grid-cols-7 gap-4 items-center py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${
                         color === 'success' ? 'bg-success' :
@@ -454,6 +477,17 @@ const Index = () => {
                     </span>
                     <span className="text-muted-foreground">{dateStr}</span>
                     <span className="text-muted-foreground">{transaction.category}</span>
+                    <div className="flex items-center justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleDelete(transaction.id)}
+                        aria-label="Remover transação"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )
               })}
@@ -464,7 +498,10 @@ const Index = () => {
                 <MoreHorizontal className="h-4 w-4 mr-2" />
                 Export Data
               </Button>
-              <AddTransactionSheet>
+              <AddTransactionSheet
+                open={isAddTransactionOpen}
+                onOpenChange={setIsAddTransactionOpen}
+              >
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Transaction
@@ -561,18 +598,18 @@ const Index = () => {
           </AddSpendingGoalSheet>
         </CardHeader>
         <CardContent className="space-y-4">
-          {goals.isLoading ? (
+          {goalsLoading ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Carregando metas...</p>
             </div>
-          ) : goals.error ? (
+          ) : goalsError ? (
             <div className="text-center py-8">
               <p className="text-destructive">Erro ao carregar metas</p>
             </div>
-          ) : goalsData?.spendingGoals && goalsData.spendingGoals.length > 0 ? (
+          ) : goalsData?.data && goalsData.data.length > 0 ? (
             <>
               <div className="flex flex-wrap justify-center gap-4">
-                {goalsData.spendingGoals.map((goal) => {
+                {goalsData.data.map((goal) => {
                   const percentage = (goal.currentAmount / goal.targetAmount) * 100;
                   const isOverLimit = goal.currentAmount > goal.targetAmount;
                   
@@ -628,7 +665,7 @@ const Index = () => {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Total gasto este mês</p>
                   <p className="text-xl font-bold text-foreground">
-                    R$ {goalsData.spendingGoals.reduce((total, goal) => total + goal.currentAmount, 0).toLocaleString()}
+                    R$ {goalsData.data.reduce((total, goal) => total + goal.currentAmount, 0).toLocaleString()}
                   </p>
                 </div>
               </div>

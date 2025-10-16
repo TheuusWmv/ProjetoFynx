@@ -1,7 +1,13 @@
 import axios from 'axios';
 import { DataProvider } from '@refinedev/core';
 
-const API_URL = 'http://localhost:3000/api'; // URL do seu backend Express
+// Interface para variáveis que podem incluir userId
+interface VariablesWithUserId {
+  userId?: number;
+  [key: string]: any;
+}
+
+const API_URL = 'http://localhost:3001/api/v1'; // URL do seu backend Express
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
@@ -9,6 +15,21 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Mapeamento de recursos do Refine para paths reais da API
+const RESOURCE_TO_PATH: Record<string, string> = {
+  // Dashboard
+  'dashboard': 'dashboard',
+  'overview': 'dashboard/overview',
+  // Transações e limites
+  'transactions': 'transactions',
+  'spending-limits': 'spending-limits',
+  // Metas (corrige 404 de saving-goals)
+  'saving-goals': 'goals/spending-goals',
+  'goals': 'goals',
+};
+
+const resolvePath = (resource: string) => RESOURCE_TO_PATH[resource] ?? resource;
 
 // Interceptor para adicionar autenticação no futuro (se necessário)
 axiosInstance.interceptors.request.use(
@@ -30,33 +51,33 @@ export const dataProvider: DataProvider = {
   
   // GET /api/{resource} - Lista recursos
   getList: async ({ resource, pagination, filters, sorters, meta }) => {
-    const url = `/${resource}`;
+    const url = `/${resolvePath(resource)}`;
     
-    const params: any = {};
+    const params: any = {
+      userId: 1 // Default userId
+    };
     
-    // Paginação
+    // Paginação - ajustado para o formato do backend
     if (pagination) {
-      params._start = pagination.current ? (pagination.current - 1) * (pagination.pageSize || 10) : 0;
-      params._end = pagination.current ? pagination.current * (pagination.pageSize || 10) : 10;
-      params._limit = pagination.pageSize || 10;
-      params._page = pagination.current || 1;
+      params.page = pagination.current || 1;
+      params.limit = pagination.pageSize || 10;
     }
     
-    // Filtros
+    // Filtros - ajustado para o formato do backend
     if (filters) {
       filters.forEach((filter) => {
         if (filter.operator === 'eq') {
           params[filter.field] = filter.value;
         } else if (filter.operator === 'contains') {
-          params[`${filter.field}_like`] = filter.value;
+          params.search = filter.value; // Para busca geral
         }
       });
     }
     
-    // Ordenação
+    // Ordenação - ajustado para o formato do backend
     if (sorters && sorters.length > 0) {
-      params._sort = sorters[0].field;
-      params._order = sorters[0].order;
+      params.sortBy = sorters[0].field;
+      params.sortOrder = sorters[0].order;
     }
 
     try {
@@ -72,54 +93,88 @@ export const dataProvider: DataProvider = {
     }
   },
 
-  // GET /api/{resource}/{id} - Busca um recurso
-  getOne: async ({ resource, id }) => {
-    const url = `/${resource}/${id}`;
+  // GET /api/{resource}/{id} - Busca um recurso específico
+  getOne: async ({ resource, id, meta }) => {
+    const url = `/${resolvePath(resource)}/${id}`;
+    
+    const params = {
+      userId: 1 // Default userId
+    };
     
     try {
-      const { data } = await axiosInstance.get(url);
-      return { data };
+      const { data } = await axiosInstance.get(url, { params });
+      
+      return {
+        data: data.data || data,
+      };
     } catch (error) {
-      console.error(`Erro ao buscar ${resource} com ID ${id}:`, error);
+      console.error(`Erro ao buscar ${resource} com id ${id}:`, error);
       throw error;
     }
   },
 
-  // POST /api/{resource} - Cria recurso
-  create: async ({ resource, variables }) => {
-    const url = `/${resource}`;
+  // POST /api/{resource} - Cria um novo recurso
+  create: async ({ resource, variables, meta }) => {
+    const url = `/${resolvePath(resource)}`;
+    
+    // Adiciona userId padrão aos dados
+    const typedVariables = variables as VariablesWithUserId;
+    const dataWithUserId = {
+      ...typedVariables,
+      userId: typedVariables.userId || 1
+    };
     
     try {
-      const { data } = await axiosInstance.post(url, variables);
-      return { data };
+      const { data } = await axiosInstance.post(url, dataWithUserId);
+      
+      return {
+        data: data.data || data,
+      };
     } catch (error) {
       console.error(`Erro ao criar ${resource}:`, error);
       throw error;
     }
   },
 
-  // PUT /api/{resource}/{id} - Atualiza recurso
-  update: async ({ resource, id, variables }) => {
-    const url = `/${resource}/${id}`;
+  // PUT /api/{resource}/{id} - Atualiza um recurso
+  update: async ({ resource, id, variables, meta }) => {
+    const url = `/${resolvePath(resource)}/${id}`;
+    
+    // Adiciona userId padrão aos dados
+    const typedVariables = variables as VariablesWithUserId;
+    const dataWithUserId = {
+      ...typedVariables,
+      userId: typedVariables.userId || 1
+    };
     
     try {
-      const { data } = await axiosInstance.put(url, variables);
-      return { data };
+      const { data } = await axiosInstance.put(url, dataWithUserId);
+      
+      return {
+        data: data.data || data,
+      };
     } catch (error) {
-      console.error(`Erro ao atualizar ${resource} com ID ${id}:`, error);
+      console.error(`Erro ao atualizar ${resource} com id ${id}:`, error);
       throw error;
     }
   },
 
-  // DELETE /api/{resource}/{id} - Deleta recurso
-  deleteOne: async ({ resource, id }) => {
-    const url = `/${resource}/${id}`;
+  // DELETE /api/{resource}/{id} - Remove um recurso
+  deleteOne: async ({ resource, id, meta }) => {
+    const url = `/${resolvePath(resource)}/${id}`;
+    
+    const params = {
+      userId: 1 // Default userId
+    };
     
     try {
-      await axiosInstance.delete(url);
-      return { data: { id } as any };
+      const { data } = await axiosInstance.delete(url, { params });
+      
+      return {
+        data: data.data || { id },
+      };
     } catch (error) {
-      console.error(`Erro ao deletar ${resource} com ID ${id}:`, error);
+      console.error(`Erro ao deletar ${resource} com id ${id}:`, error);
       throw error;
     }
   },
@@ -127,7 +182,7 @@ export const dataProvider: DataProvider = {
   // Para múltiplas deleções
   deleteMany: async ({ resource, ids }) => {
     try {
-      const deletePromises = ids.map(id => axiosInstance.delete(`/${resource}/${id}`));
+      const deletePromises = ids.map(id => axiosInstance.delete(`/${resolvePath(resource)}/${id}`, { params: { userId: 1 } }));
       await Promise.all(deletePromises);
       return { data: ids.map(id => ({ id })) as any };
     } catch (error) {
@@ -157,7 +212,7 @@ export const dataProvider: DataProvider = {
   // Para buscar múltiplos recursos por IDs
   getMany: async ({ resource, ids }) => {
     try {
-      const promises = ids.map(id => axiosInstance.get(`/${resource}/${id}`));
+      const promises = ids.map(id => axiosInstance.get(`/${resolvePath(resource)}/${id}`, { params: { userId: 1 } }));
       const responses = await Promise.all(promises);
       const data = responses.map(response => response.data);
       

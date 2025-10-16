@@ -23,8 +23,25 @@ import {
 } from "@/components/ui/sheet"
 import { Plus, Upload, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useAddTransaction } from "@/hooks/useDashboard"
-import { useUpdateGoalProgressByTransaction } from "@/hooks/useGoals"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { useQueryClient } from "@tanstack/react-query"
+import * as z from "zod"
+import {
+  useCreate,
+  useInvalidate,
+  useList,
+} from "@refinedev/core"
 
 interface AddTransactionSheetProps {
   children: React.ReactNode;
@@ -34,308 +51,298 @@ interface AddTransactionSheetProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const categories = [
-  "Salary", "Freelance", "Investment", "Business", "Gift", "Other Income",
-  "Housing", "Food", "Transportation", "Healthcare", "Entertainment", 
-  "Shopping", "Bills", "Education", "Travel", "Other Expense"
-]
+const transactionFormSchema = z.object({
+  description: z.string().min(1, "Descrição é obrigatória"),
+  amount: z.coerce.number().min(0.01, "O valor deve ser maior que zero"),
+  type: z.enum(["income", "expense"], {
+    required_error: "O tipo da transação é obrigatório",
+  }),
+  category: z.string().min(1, "Categoria é obrigatória"),
+  date: z.string().min(1, "Data é obrigatória"),
+  isRecurring: z.boolean().default(false),
+  spendingLimitId: z.string().optional(),
+});
 
-const goals = [
-  "Emergency Fund", "Vacation", "Car", "House", "Investment", "Other"
-]
+type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
-export function AddTransactionSheet({ children, goalId, goalName, open, onOpenChange }: AddTransactionSheetProps) {
-  const [description, setDescription] = useState("")
-  const [type, setType] = useState("")
-  const [amount, setAmount] = useState("")
-  const [category, setCategory] = useState("")
-  const [isRecurring, setIsRecurring] = useState(false)
-  const [relatedGoal, setRelatedGoal] = useState("")
-  const [hasGoal, setHasGoal] = useState(false)
-  const [attachedImage, setAttachedImage] = useState<File | null>(null)
-  const [internalIsOpen, setInternalIsOpen] = useState(false)
-  const { toast } = useToast()
-  const addTransaction = useAddTransaction()
-  const updateGoalProgressByTransaction = useUpdateGoalProgressByTransaction()
+const categories = {
+  income: [
+    "Salary",
+    "Freelance",
+    "Investment",
+    "Business",
+    "Gift",
+    "Other Income",
+  ],
+  expense: [
+    "Housing",
+    "Food",
+    "Transportation",
+    "Healthcare",
+    "Entertainment",
+    "Shopping",
+    "Bills",
+    "Education",
+    "Travel",
+    "Other Expense",
+  ],
+};
 
-  // Use external state if provided, otherwise use internal state
-  const isOpen = open !== undefined ? open : internalIsOpen
-  const setIsOpen = onOpenChange || setInternalIsOpen
+export function AddTransactionSheet({
+  children,
+  open,
+  onOpenChange,
+}: AddTransactionSheetProps) {
+  const { toast } = useToast();
+  const invalidate = useInvalidate();
+  const [linkToSpendingLimit, setLinkToSpendingLimit] = useState(false);
+  const queryClient = useQueryClient();
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({
-          title: "Arquivo muito grande",
-          description: "A imagem deve ter no máximo 5MB",
-          variant: "destructive"
-        })
-        return
-      }
-      setAttachedImage(file)
-    }
-  }
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionFormSchema),
+    defaultValues: {
+      isRecurring: false,
+      date: new Date().toISOString().split('T')[0], // Data de hoje no formato YYYY-MM-DD
+    },
+  });
 
-  const removeImage = () => {
-    setAttachedImage(null)
-    const input = document.getElementById('image-upload') as HTMLInputElement
-    if (input) input.value = ''
-  }
+  const transactionType = form.watch("type");
 
-  const handleSave = () => {
-    // For goal contributions, set defaults
-    const transactionType = goalId ? "income" : type
-    const transactionCategory = goalId ? "goal-contribution" : category
-    const transactionDescription = description || (goalId ? `Aporte para meta: ${goalName}` : "")
+  const { mutate: createTransaction, isLoading } = useCreate({
+    resource: "transactions",
+  });
 
-    if (!transactionDescription || !transactionType || !amount || !transactionCategory) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive"
-      })
-      return
-    }
+  const { data: spendingLimits } = useList({
+    resource: "spending-limits",
+    queryOptions: {
+      enabled: transactionType === "expense" && linkToSpendingLimit,
+    },
+  });
 
-    // Submit to backend
-    const payload = {
-      description: transactionDescription,
-      type: transactionType as 'income' | 'expense',
-      status: 'completed' as const,
-      amount: parseFloat(amount),
-      date: new Date().toISOString().split('T')[0],
-      category: transactionCategory,
-    }
-    addTransaction.mutate(payload, {
-      onSuccess: () => {
-        const isGoalContribution = !!goalId
-        const successMessage = isGoalContribution 
-          ? `Aporte de R$ ${amount} adicionado à meta "${goalName}"`
-          : `${transactionType === 'income' ? 'Entrada' : 'Saída'} de R$ ${amount} foi adicionada com sucesso`
-        toast({
-          title: isGoalContribution ? "Aporte realizado!" : "Transação adicionada",
-          description: successMessage,
-        })
-
-        // If goal contribution, update progress in backend
-        if (goalId) {
-          updateGoalProgressByTransaction.mutate({
-            id: goalId,
-            amount: parseFloat(amount),
-            transactionType: 'income',
-          })
-        }
-
-        // Reset form
-        setDescription("")
-        setType("")
-        setAmount("")
-        setCategory("")
-        setIsRecurring(false)
-        setRelatedGoal("")
-        setHasGoal(false)
-        setAttachedImage(null)
-        setIsOpen(false)
+  const onSubmit = (values: TransactionFormValues) => {
+    createTransaction(
+      {
+        values,
       },
-      onError: () => {
-        toast({
-          title: "Erro ao adicionar",
-          description: "Não foi possível salvar a transação",
-          variant: "destructive",
-        })
+      {
+        onSuccess: () => {
+          toast({
+            title: "Transação adicionada",
+            description: "Sua transação foi adicionada com sucesso.",
+          });
+          form.reset();
+          onOpenChange?.(false);
+          
+          // Invalidar cache do dashboard e transações
+          invalidate({
+            invalidates: ["list"],
+            resource: "dashboard",
+          });
+          invalidate({
+            invalidates: ["list"],
+            resource: "transactions",
+          });
+          invalidate({
+            invalidates: ["list"],
+            resource: "overview",
+          });
+
+          // Garantir refetch das queries do React Query usadas no dashboard
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        },
+        onError: (error) => {
+          toast({
+            title: "Erro ao adicionar transação",
+            description: "Ocorreu um erro ao tentar adicionar a transação.",
+            variant: "destructive",
+          });
+          console.error("Erro ao criar transação:", error);
+        },
       }
-    })
-  }
+    );
+  };
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        {children}
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>{children}</SheetTrigger>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            {goalId ? `Adicionar Fundos - ${goalName}` : "Adicionar Transação"}
+            Adicionar Transação
           </SheetTitle>
-          <SheetDescription>
-            {goalId 
-              ? `Adicione fundos à sua meta "${goalName}". O valor será registrado como uma transação de entrada.`
-              : "Preencha os dados da nova transação. Todos os campos marcados são obrigatórios."
-            }
-          </SheetDescription>
         </SheetHeader>
-        
-        <div className="grid gap-6 py-4">
-          {/* Description */}
-          <div className="grid gap-2">
-            <Label htmlFor="description">Descrição *</Label>
-            <Textarea 
-              id="description"
-              placeholder={goalId 
-                ? `Aporte para meta: ${goalName}` 
-                : "Ex: Salário mensal, Compra supermercado..."
-              }
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[80px]"
-            />
-          </div>
-
-          {/* Type - Hide if it's a goal contribution */}
-          {!goalId && (
-            <div className="grid gap-2">
-              <Label htmlFor="type">Tipo *</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Entrada</SelectItem>
-                  <SelectItem value="expense">Saída</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Show goal info if it's a goal contribution */}
-          {goalId && (
-            <div className="bg-accent/10 p-3 rounded-lg border border-accent/20">
-              <div className="flex items-center gap-2 text-sm">
-                <Plus className="h-4 w-4 text-accent" />
-                <span className="text-foreground">
-                  Contribuindo para: <strong className="text-accent">{goalName}</strong>
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Este valor será adicionado automaticamente ao progresso da sua meta
-              </p>
-            </div>
-          )}
-
-          {/* Amount */}
-          <div className="grid gap-2">
-            <Label htmlFor="amount">Valor *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0,00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-
-          {/* Category */}
-          <div className="grid gap-2">
-            <Label htmlFor="category">Categoria *</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {goalId && <SelectItem value="goal-contribution">Aporte para Meta</SelectItem>}
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat.toLowerCase()}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Recurring */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="recurring" className="text-sm font-medium">
-              Transação recorrente
-            </Label>
-            <Switch
-              id="recurring"
-              checked={isRecurring}
-              onCheckedChange={setIsRecurring}
-            />
-          </div>
-          {isRecurring && (
-            <p className="text-sm text-muted-foreground">
-              Esta transação será repetida automaticamente todo mês
-            </p>
-          )}
-
-          {/* Goal Related */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="has-goal" className="text-sm font-medium">
-              Relacionado a uma meta
-            </Label>
-            <Switch
-              id="has-goal"
-              checked={hasGoal}
-              onCheckedChange={setHasGoal}
-            />
-          </div>
-
-          {hasGoal && (
-            <div className="grid gap-2">
-              <Label htmlFor="goal">Meta</Label>
-              <Select value={relatedGoal} onValueChange={setRelatedGoal}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a meta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {goals.map((goal) => (
-                    <SelectItem key={goal} value={goal.toLowerCase()}>{goal}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Image Upload */}
-          <div className="grid gap-2">
-            <Label htmlFor="image-upload">Anexar Imagem (opcional)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById('image-upload')?.click()}
-                className="flex-1"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {attachedImage ? 'Alterar Imagem' : 'Escolher Imagem'}
-              </Button>
-              {attachedImage && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={removeImage}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Salário, Supermercado" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-            {attachedImage && (
-              <p className="text-sm text-muted-foreground">
-                Arquivo: {attachedImage.name} ({(attachedImage.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
-            )}
-          </div>
-        </div>
+            />
 
-        <SheetFooter className="gap-2">
-          <SheetClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </SheetClose>
-          <Button onClick={handleSave} disabled={addTransaction.isPending} className={goalId ? "bg-accent text-accent-foreground hover:bg-accent/90" : ""}>
-            {addTransaction.isPending ? "Salvando..." : goalId ? "Adicionar Aporte" : "Salvar Transação"}
-          </Button>
-        </SheetFooter>
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor *</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="R$ 0,00" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Tipo *</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="income" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Entrada</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="expense" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Saída</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {transactionType &&
+                        categories[transactionType].map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data *</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isRecurring"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Transação Recorrente</FormLabel>
+                    <FormDescription>
+                      Esta transação se repetirá mensalmente.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {transactionType === "expense" && (
+              <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <FormLabel>Vincular a limite de gasto</FormLabel>
+                </div>
+                <Switch
+                  checked={linkToSpendingLimit}
+                  onCheckedChange={setLinkToSpendingLimit}
+                />
+              </div>
+            )}
+
+            {transactionType === "expense" && linkToSpendingLimit && (
+              <FormField
+                control={form.control}
+                name="spendingLimitId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Limite de Gasto</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um limite" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {spendingLimits?.data?.map((limit) => (
+                          <SelectItem key={limit.id} value={String(limit.id)}>
+                            {limit.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Salvando..." : "Salvar Transação"}
+            </Button>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
-  )
+  );
 }
