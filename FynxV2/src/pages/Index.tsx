@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AddTransactionSheet } from "@/components/AddTransactionSheet"
-import { useList } from "@refinedev/core"
-import { useDashboard, useDeleteTransaction, useTransactionHistory } from "@/hooks/useDashboard"
+import { useList, useInvalidate } from "@refinedev/core"
+import { useDashboard, useDeleteTransaction } from "@/hooks/useDashboard"
 import { AddSpendingGoalSheet } from "@/components/AddSpendingGoalSheet"
 import { 
   Eye, TrendingUp, TrendingDown, Users, 
@@ -89,7 +89,7 @@ const Index = () => {
   const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("12m")
   const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false)
   const { data: dashboardData } = useDashboard()
-  const { data: transactionHistory } = useTransactionHistory()
+  // const { data: transactionHistory } = useTransactionHistory()
   const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useList({
     resource: "goals/spending-goals",
   })
@@ -111,8 +111,82 @@ const Index = () => {
   const [filterType, setFilterType] = React.useState<"all" | "income" | "expense">("all")
   const [filterCategory, setFilterCategory] = React.useState<string>("all")
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set())
+// Dados paginados da modal de transações
+const [page, setPage] = React.useState(1)
+const [pageSize] = React.useState(100)
+const [items, setItems] = React.useState<any[]>([])
+const [searchDebounced, setSearchDebounced] = React.useState("")
+
+const { data: txPage, isFetching: isFetchingTx } = useList({
+  resource: "transactions",
+  pagination: { current: page, pageSize },
+  filters: [
+    filterType !== "all" ? { field: "type", operator: "eq", value: filterType } : undefined,
+    filterCategory !== "all" ? { field: "category", operator: "eq", value: filterCategory } : undefined,
+    searchDebounced ? { field: "search", operator: "contains", value: searchDebounced } : undefined,
+  ].filter(Boolean) as any,
+  sorters: [{ field: sortField, order: sortOrder }],
+  queryOptions: { keepPreviousData: true, enabled: isExpandedOpen },
+})
+
+// Debounce de busca
+React.useEffect(() => {
+  const t = setTimeout(() => setSearchDebounced(searchQuery), 400)
+  return () => clearTimeout(t)
+}, [searchQuery])
+
+// Reset de paginação ao mudar filtros/ordenacao/busca ou abrir modal
+React.useEffect(() => {
+  if (!isExpandedOpen) return
+  setPage(1)
+  setItems([])
+}, [isExpandedOpen, filterType, filterCategory, sortField, sortOrder, searchDebounced])
+
+// Acumular páginas
+React.useEffect(() => {
+  const pageData = txPage?.data ?? []
+  if (!isExpandedOpen) return
+  if (page === 1) {
+    setItems(pageData)
+  } else if (pageData.length) {
+    setItems((prev) => {
+      const seen = new Set(prev.map((p: any) => p.id))
+      const merged = [...prev]
+      for (const it of pageData) {
+        if (!seen.has(it.id)) merged.push(it)
+      }
+      return merged
+    })
+  }
+}, [txPage?.data, page, isExpandedOpen])
+
+const total = txPage?.total ?? 0
+const hasMore = items.length < total
+
+// Sentinel para scroll infinito dentro da lista virtualizada
+const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+React.useEffect(() => {
+  if (!isExpandedOpen) return
+  const outer = sentinelRef.current?.parentElement?.parentElement || null
+  if (!outer) return
+  const obs = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMore && !isFetchingTx) {
+        setPage((p) => p + 1)
+      }
+    },
+    { root: outer, rootMargin: "200px", threshold: 0 }
+  )
+  const el = sentinelRef.current
+  if (el) obs.observe(el)
+  return () => {
+    if (el) obs.unobserve(el)
+    obs.disconnect()
+  }
+}, [hasMore, isFetchingTx, isExpandedOpen])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false)
   const queryClient = useQueryClient()
+  const invalidate = useInvalidate()
   const [listHeight, setListHeight] = React.useState(500)
   const [listWidth, setListWidth] = React.useState<number>(900)
 
@@ -129,46 +203,14 @@ const Index = () => {
   }, [data?.recentTransactions])
 
   const availableCategories = React.useMemo(() => {
-    const arr = transactionHistory ?? []
     const set = new Set<string>()
-    for (const t of arr) {
-      if (t.category) set.add(t.category)
+    for (const t of items) {
+      if (t?.category) set.add(t.category)
     }
     return Array.from(set)
-  }, [transactionHistory])
+  }, [items])
 
-  const expandedTransactions = React.useMemo(() => {
-    let arr = transactionHistory ?? []
-    if (filterType !== "all") arr = arr.filter((t) => t.type === filterType)
-    if (filterCategory !== "all") arr = arr.filter((t) => t.category === filterCategory)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      arr = arr.filter((t) =>
-        (t.description?.toLowerCase().includes(q)) ||
-        (t.category?.toLowerCase().includes(q)) ||
-        (new Date(t.date).toLocaleDateString("pt-BR").toLowerCase().includes(q)) ||
-        String(t.amount).toLowerCase().includes(q)
-      )
-    }
-    const sorted = [...arr].sort((a, b) => {
-      if (sortField === "date") {
-        const ta = new Date(a.date).getTime()
-        const tb = new Date(b.date).getTime()
-        return sortOrder === "asc" ? ta - tb : tb - ta
-      }
-      if (sortField === "type") {
-        const pa = a.type === "income" ? 1 : 2
-        const pb = b.type === "income" ? 1 : 2
-        return sortOrder === "asc" ? pa - pb : pb - pa
-      }
-      if (sortField === "category") {
-        const ca = (a.category || "").localeCompare(b.category || "")
-        return sortOrder === "asc" ? ca : -ca
-      }
-      return 0
-    })
-    return sorted
-  }, [transactionHistory, filterType, filterCategory, searchQuery, sortField, sortOrder])
+  const expandedTransactions = items
 
   const clearFilters = () => {
     setSearchQuery("")
@@ -218,13 +260,29 @@ const Index = () => {
         transactionIds: Array.from(selectedIds),
       }
       const res = await api.post<{ successCount: number; failedCount: number; errors?: string[] }>("/transactions/bulk", body)
-      toast({ title: "Exclusão em lote", description: `${res.successCount} removidas, ${res.failedCount} falhas.` })
+
+      // Mensagens de toast mais amigáveis
+      if (res.failedCount === 0) {
+        toast({ title: "Transações apagadas", description: `${res.successCount} transações foram removidas com sucesso.` })
+      } else if (res.successCount > 0) {
+        toast({ title: "Remoção concluída", description: `${res.successCount} removidas. ${res.failedCount} não puderam ser removidas.` })
+      } else {
+        toast({ title: "Nada foi removido", description: "Não foi possível remover as transações selecionadas.", variant: "destructive" })
+      }
+
       setIsBulkDeleteDialogOpen(false)
       setSelectedIds(new Set())
+
+      // Resetar paginação e lista para refletir o estado atualizado
+      setPage(1)
+      setItems([])
+
+      // Invalidações para sincronizar outras visões
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] })
       await queryClient.invalidateQueries({ queryKey: ["transactions"] })
+      invalidate({ resource: "transactions", invalidates: ["list"] })
     } catch (e: any) {
-      toast({ title: "Erro ao excluir em lote", description: e.message, variant: "destructive" })
+      toast({ title: "Erro na exclusão", description: e.message, variant: "destructive" })
       setIsBulkDeleteDialogOpen(false)
     }
   }
@@ -281,10 +339,21 @@ const Index = () => {
     if (!deleteTargetId) return
     deleteTransaction(deleteTargetId, {
       onSuccess: () => {
-        toast({ title: "Transação removida", description: "A transação foi removida com sucesso." })
+        // Remover imediatamente a transação da lista da modal
+        setItems((prev) => prev.filter((t: any) => String(t.id) !== String(deleteTargetId)))
+        // Remover da seleção, se estiver selecionada
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(Number(deleteTargetId))
+          return next
+        })
+        // Invalidar a lista do Refine para manter o estado em sincronia
+        invalidate({ resource: "transactions", invalidates: ["list"] })
+        // Toast amigável
+        toast({ title: "Transação apagada", description: "A transação foi removida com sucesso." })
       },
       onError: () => {
-        toast({ title: "Erro ao remover", description: "Não foi possível remover a transação.", variant: "destructive" })
+        toast({ title: "Não foi possível remover", description: "Tente novamente mais tarde.", variant: "destructive" })
       },
       onSettled: () => {
         setIsDeleteDialogOpen(false)
@@ -791,12 +860,26 @@ const Index = () => {
                   <VirtualList
                     className="divide-y divide-border"
                     style={{ height: listHeight }}
-                    rowCount={expandedTransactions.length}
+                    rowCount={expandedTransactions.length + 1}
                     rowHeight={64}
-                    overscanCount={8}
-                    rowProps={{ items: expandedTransactions, selectedIds, toggleSelect, handleDelete }}
+                    overscanCount={12}
+                    rowProps={{ items: expandedTransactions, selectedIds, toggleSelect, handleDelete, hasMore, isFetchingTx }}
                     rowComponent={({ index, style, ariaAttributes, ...rowProps }) => {
-                      const { items, selectedIds, toggleSelect, handleDelete } = rowProps as any
+                      const { items, selectedIds, toggleSelect, handleDelete, hasMore, isFetchingTx } = rowProps as any
+                      // Sentinel na última linha para scroll infinito
+                      if (index === items.length) {
+                        return (
+                          <div style={style} {...ariaAttributes} className="grid grid-cols-7 gap-4 items-center px-2 min-w-[900px]">
+                            <div ref={sentinelRef} className="col-span-7 flex items-center justify-center py-2">
+                              {hasMore ? (
+                                <span className="text-sm text-muted-foreground">{isFetchingTx ? "Carregando mais..." : "Role para carregar mais"}</span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Fim das transações</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
                       const transaction = items[index]
                       const color = transaction.type === 'income' ? 'success' : 'destructive'
                       const amountStr = `${transaction.type === 'income' ? '+' : ''}R$ ${Number(transaction.amount).toLocaleString()}`
