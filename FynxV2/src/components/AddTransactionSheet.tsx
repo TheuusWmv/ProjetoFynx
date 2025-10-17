@@ -21,7 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Plus, Upload, X } from "lucide-react"
+import { Plus, Upload, X, CalendarIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Form,
@@ -42,6 +42,11 @@ import {
   useInvalidate,
   useList,
 } from "@refinedev/core"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { format, parse, isValid } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
 interface AddTransactionSheetProps {
   children: React.ReactNode;
@@ -106,6 +111,60 @@ export function AddTransactionSheet({
     },
   });
 
+  const [typedDate, setTypedDate] = useState<string>(() => {
+    const iso = new Date().toISOString().split('T')[0]
+    const d = parse(iso, "yyyy-MM-dd", new Date())
+    return format(d, "dd/MM/yyyy")
+  })
+
+  // Normaliza entradas como "4/4/25" -> "04/04/2025"
+  const normalizeDateInput = (val: string): string | null => {
+    if (!val) return null
+    const cleaned = val.replace(/[^\d/]/g, "")
+    const parts = cleaned.split("/")
+    if (parts.length < 3) return null
+    let [d, m, y] = parts
+    if (!d || !m || !y) return null
+    d = d.slice(0, 2).padStart(2, "0")
+    m = m.slice(0, 2).padStart(2, "0")
+    y = y.slice(0, 4)
+    if (y.length <= 2) {
+      const yy = parseInt(y, 10)
+      if (Number.isNaN(yy)) return null
+      y = String(2000 + yy)
+    } else if (y.length === 3) {
+      // Pouco comum: manter como está e deixar parse validar
+    }
+    return `${d}/${m}/${y}`
+  }
+
+  // Máscara em tempo real: insere barras após dia e mês, e converte ano "yy" para "20yy"
+  const maskDateOnInput = (val: string): string => {
+    const digits = val.replace(/[^\d]/g, "")
+    const d = digits.slice(0, 2)
+    const m = digits.slice(2, 4)
+    const yRaw = digits.slice(4, 8)
+    let y = yRaw
+    if (yRaw.length === 2) {
+      y = `20${yRaw}`
+    }
+    let masked = ""
+    if (d.length) {
+      masked = d
+      if (d.length === 2) masked += "/"
+    }
+    if (m.length) {
+      masked += m
+      if (m.length === 2) masked += "/"
+    }
+    if (y.length) {
+      masked += y
+    }
+    return masked
+  }
+
+  const [typedAmount, setTypedAmount] = useState<string>("")
+
   const transactionType = form.watch("type");
 
   const { mutate: createTransaction, isLoading } = useCreate({
@@ -131,6 +190,7 @@ export function AddTransactionSheet({
             description: "Sua transação foi adicionada com sucesso.",
           });
           form.reset();
+          setTypedAmount("");
           onOpenChange?.(false);
           
           // Invalidar cache do dashboard e transações
@@ -196,7 +256,47 @@ export function AddTransactionSheet({
                 <FormItem>
                   <FormLabel>Valor *</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="R$ 0,00" {...field} />
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="R$ 0,00"
+                      value={typedAmount}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        // Permite apenas dígitos e vírgula; remove pontos para recalcular formatação
+                        const sanitized = val.replace(/[^\d,]/g, "").replace(/,{2,}/g, ",")
+                        const [intPartRaw = "", decPartRaw = ""] = sanitized.split(",")
+                        const intDigits = intPartRaw.replace(/\D/g, "")
+                        const decDigits = decPartRaw.replace(/\D/g, "").slice(0, 2)
+                        const intWithDots = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                        const hasComma = sanitized.includes(",")
+                        const formatted = hasComma
+                          ? (decDigits ? `${intWithDots},${decDigits}` : `${intWithDots},`)
+                          : intWithDots
+                        setTypedAmount(formatted)
+                        // Atualiza valor numérico do formulário quando possível
+                        const numericStr = decDigits ? `${intDigits}.${decDigits}` : intDigits
+                        if (numericStr) {
+                          const n = parseFloat(numericStr)
+                          if (!Number.isNaN(n)) {
+                            field.onChange(n)
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!typedAmount) return
+                        const [intPartRaw = "", decPartRaw = ""] = typedAmount.split(",")
+                        const intDigits = intPartRaw.replace(/\./g, "")
+                        const decDigits = decPartRaw.padEnd(2, "0").slice(0, 2)
+                        const intWithDots = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                        const finalFormatted = `${intWithDots},${decDigits}`
+                        setTypedAmount(finalFormatted)
+                        const n = parseFloat(`${intDigits}.${decDigits}`)
+                        if (!Number.isNaN(n)) {
+                          field.onChange(n)
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,15 +363,72 @@ export function AddTransactionSheet({
             <FormField
               control={form.control}
               name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selectedDate = field.value ? parse(field.value, "yyyy-MM-dd", new Date()) : undefined
+                return (
+                  <FormItem>
+                    <FormLabel>Data *</FormLabel>
+                    <div className="relative w-[280px]">
+                      <FormControl>
+                        <Input
+                          placeholder="dd/mm/yyyy"
+                          inputMode="numeric"
+                          value={typedDate}
+                          onChange={(e) => {
+                            const masked = maskDateOnInput(e.target.value)
+                            setTypedDate(masked)
+                            // Atualiza o valor do formulário apenas quando houver data completa válida
+                            const parsed = parse(masked, "dd/MM/yyyy", new Date())
+                            if (
+                              masked.length >= 10 &&
+                              isValid(parsed) &&
+                              parsed <= new Date()
+                            ) {
+                              field.onChange(format(parsed, "yyyy-MM-dd"))
+                            }
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizeDateInput(typedDate)
+                            if (!normalized) return
+                            setTypedDate(normalized)
+                            const parsed = parse(normalized, "dd/MM/yyyy", new Date())
+                            if (isValid(parsed) && parsed <= new Date()) {
+                              field.onChange(format(parsed, "yyyy-MM-dd"))
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Abrir calendário"
+                            className="absolute right-1 top-1/2 -translate-y-1/2"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            initialFocus
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => {
+                              if (!date) return
+                              setTypedDate(format(date, "dd/MM/yyyy", { locale: ptBR }))
+                              field.onChange(format(date, "yyyy-MM-dd"))
+                            }}
+                            disabled={{ after: new Date() }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
 
             <FormField

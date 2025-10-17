@@ -244,7 +244,7 @@ const getPerformanceData = async (userId: number): Promise<{ dailyPerformance: D
  * @param {number} limit - Número de transações a retornar.
  * @returns {Promise<Transaction[]>} As transações recentes.
  */
-const getRecentTransactions = async (userId: number, limit: number = 4): Promise<Transaction[]> => {
+const getRecentTransactions = async (userId: number, limit: number = 6): Promise<Transaction[]> => {
   const db = database;
   
   const results = await db.all(`

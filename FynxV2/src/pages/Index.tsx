@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AddTransactionSheet } from "@/components/AddTransactionSheet"
 import { useList } from "@refinedev/core"
-import { useDashboard, useDeleteTransaction } from "@/hooks/useDashboard"
+import { useDashboard, useDeleteTransaction, useTransactionHistory } from "@/hooks/useDashboard"
 import { AddSpendingGoalSheet } from "@/components/AddSpendingGoalSheet"
 import { 
   Eye, TrendingUp, TrendingDown, Users, 
@@ -28,11 +28,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { DashboardData } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { Checkbox } from "@/components/ui/checkbox"
+import { api } from "@/lib/apiClient"
+import { useQueryClient } from "@tanstack/react-query"
+import { List as VirtualList } from "react-window"
+import { X } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
 
 // Map overview titles to icons from lucide-react
 const overviewIconMap: Record<string, React.ComponentType<any>> = {
@@ -71,23 +89,208 @@ const Index = () => {
   const [monthlyTimeRange, setMonthlyTimeRange] = React.useState("12m")
   const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false)
   const { data: dashboardData } = useDashboard()
+  const { data: transactionHistory } = useTransactionHistory()
   const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useList({
     resource: "goals/spending-goals",
   })
   const data = dashboardData as DashboardData
   const { toast } = useToast()
   const { mutate: deleteTransaction } = useDeleteTransaction()
-  const handleDelete = (id: number | string) => {
-    if (window.confirm("Tem certeza que deseja remover esta transação?")) {
-      deleteTransaction(id, {
-        onSuccess: () => {
-          toast({ title: "Transação removida", description: "A transação foi removida com sucesso." })
-        },
-        onError: () => {
-          toast({ title: "Erro ao remover", description: "Não foi possível remover a transação.", variant: "destructive" })
-        },
-      })
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [deleteTargetId, setDeleteTargetId] = React.useState<number | string | null>(null)
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [isExpandedOpen, setIsExpandedOpen] = React.useState(() => {
+    const fromListFlag = searchParams.has("ListTransaction")
+    const fromModal = searchParams.get("modal") === "transactions"
+    return fromListFlag || fromModal
+  })
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [sortField, setSortField] = React.useState<"date" | "type" | "category">("date")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  const [filterType, setFilterType] = React.useState<"all" | "income" | "expense">("all")
+  const [filterCategory, setFilterCategory] = React.useState<string>("all")
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set())
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false)
+  const queryClient = useQueryClient()
+  const [listHeight, setListHeight] = React.useState(500)
+  const [listWidth, setListWidth] = React.useState<number>(900)
+
+  const recentTransactionsSorted = React.useMemo(() => {
+    const arr = data?.recentTransactions ?? []
+    return [...arr].sort((a: any, b: any) => {
+      const timeA = new Date(a.date).getTime()
+      const timeB = new Date(b.date).getTime()
+      if (timeB !== timeA) return timeB - timeA
+      const idA = Number(a.id) || 0
+      const idB = Number(b.id) || 0
+      return idB - idA
+    })
+  }, [data?.recentTransactions])
+
+  const availableCategories = React.useMemo(() => {
+    const arr = transactionHistory ?? []
+    const set = new Set<string>()
+    for (const t of arr) {
+      if (t.category) set.add(t.category)
     }
+    return Array.from(set)
+  }, [transactionHistory])
+
+  const expandedTransactions = React.useMemo(() => {
+    let arr = transactionHistory ?? []
+    if (filterType !== "all") arr = arr.filter((t) => t.type === filterType)
+    if (filterCategory !== "all") arr = arr.filter((t) => t.category === filterCategory)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      arr = arr.filter((t) =>
+        (t.description?.toLowerCase().includes(q)) ||
+        (t.category?.toLowerCase().includes(q)) ||
+        (new Date(t.date).toLocaleDateString("pt-BR").toLowerCase().includes(q)) ||
+        String(t.amount).toLowerCase().includes(q)
+      )
+    }
+    const sorted = [...arr].sort((a, b) => {
+      if (sortField === "date") {
+        const ta = new Date(a.date).getTime()
+        const tb = new Date(b.date).getTime()
+        return sortOrder === "asc" ? ta - tb : tb - ta
+      }
+      if (sortField === "type") {
+        const pa = a.type === "income" ? 1 : 2
+        const pb = b.type === "income" ? 1 : 2
+        return sortOrder === "asc" ? pa - pb : pb - pa
+      }
+      if (sortField === "category") {
+        const ca = (a.category || "").localeCompare(b.category || "")
+        return sortOrder === "asc" ? ca : -ca
+      }
+      return 0
+    })
+    return sorted
+  }, [transactionHistory, filterType, filterCategory, searchQuery, sortField, sortOrder])
+
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSortField("date")
+    setSortOrder("desc")
+    setFilterType("all")
+    setFilterCategory("all")
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allSelected = React.useMemo(() => {
+    const arr = expandedTransactions
+    if (arr.length === 0) return false
+    return arr.every((t: any) => selectedIds.has(Number(t.id)))
+  }, [expandedTransactions, selectedIds])
+
+  const selectAllFiltered = () => {
+    const allIds = expandedTransactions.map((t: any) => Number(t.id))
+    setSelectedIds(new Set(allIds))
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const toggleSelectAll = () => {
+    if (allSelected) clearSelection()
+    else selectAllFiltered()
+  }
+
+  const handleBulkDeleteClick = () => {
+    if (selectedIds.size === 0) return
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const confirmBulkDelete = async () => {
+    try {
+      const body = {
+        userId: 1,
+        operation: "delete",
+        transactionIds: Array.from(selectedIds),
+      }
+      const res = await api.post<{ successCount: number; failedCount: number; errors?: string[] }>("/transactions/bulk", body)
+      toast({ title: "Exclusão em lote", description: `${res.successCount} removidas, ${res.failedCount} falhas.` })
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedIds(new Set())
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] })
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir em lote", description: e.message, variant: "destructive" })
+      setIsBulkDeleteDialogOpen(false)
+    }
+  }
+
+  React.useEffect(() => {
+    const h = Math.ceil(window.innerHeight * 0.6)
+    setListHeight(Math.min(h, 700))
+    const w = Math.min(960, window.innerWidth - 80)
+    setListWidth(w)
+  }, [])
+
+  React.useEffect(() => {
+    const modal = searchParams.get("modal")
+    const listFlag = searchParams.has("ListTransaction")
+    if (modal === "transactions" || listFlag) {
+      setIsExpandedOpen(true)
+    }
+    const sq = searchParams.get("search")
+    const sf = (searchParams.get("sort") as "date" | "type" | "category") || undefined
+    const so = (searchParams.get("order") as "asc" | "desc") || undefined
+    const ft = (searchParams.get("type") as "all" | "income" | "expense") || undefined
+    const fc = searchParams.get("category") || undefined
+    if (sq !== null) setSearchQuery(sq)
+    if (sf) setSortField(sf)
+    if (so) setSortOrder(so)
+    if (ft) setFilterType(ft)
+    if (fc) setFilterCategory(fc)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  React.useEffect(() => {
+    if (!isExpandedOpen) return
+    // Manter a URL limpa: apenas ?ListTransaction
+    navigate(`${window.location.pathname}?ListTransaction`, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpandedOpen])
+
+  const handleExpandedOpenChange = (open: boolean) => {
+    setIsExpandedOpen(open)
+    if (open) {
+      navigate(`${window.location.pathname}?ListTransaction`, { replace: true })
+    } else {
+      clearSelection()
+      navigate(`${window.location.pathname}`, { replace: true })
+    }
+  }
+
+  const handleDelete = (id: number | string) => {
+    setDeleteTargetId(id)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTargetId) return
+    deleteTransaction(deleteTargetId, {
+      onSuccess: () => {
+        toast({ title: "Transação removida", description: "A transação foi removida com sucesso." })
+      },
+      onError: () => {
+        toast({ title: "Erro ao remover", description: "Não foi possível remover a transação.", variant: "destructive" })
+      },
+      onSettled: () => {
+        setIsDeleteDialogOpen(false)
+        setDeleteTargetId(null)
+      },
+    })
   }
   
   // Estados para o Daily Comparison
@@ -160,20 +363,11 @@ const Index = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-start">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Financial Overview</h1>
           <p className="text-muted-foreground">Track your financial performance</p>
         </div>
-        <AddTransactionSheet
-          open={isAddTransactionOpen}
-          onOpenChange={setIsAddTransactionOpen}
-        >
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Quick Create
-          </Button>
-        </AddTransactionSheet>
       </div>
 
       {/* Overview Cards */}
@@ -328,6 +522,33 @@ const Index = () => {
           </CardContent>
         </Card>
 
+        {/* Confirmação de Exclusão */}
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={(open) => {
+            setIsDeleteDialogOpen(open)
+            if (!open) setDeleteTargetId(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir transação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação é irreversível. Tem certeza que deseja excluir?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Category Breakdown Chart */}
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 pb-2">
@@ -403,31 +624,14 @@ const Index = () => {
         {/* Recent Transactions */}
         <Card className="lg:col-span-2 bg-card border-border">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="bg-primary text-primary-foreground">
-                  Recent Transactions
-                </Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  Past Performance
-                </Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  Categories
-                </Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  Recurring
-                </Button>
-              </div>
-            </div>
+            <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {/* Table Header */}
-              <div className="grid grid-cols-7 gap-4 text-sm font-medium text-muted-foreground pb-2">
+              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-muted-foreground pb-2">
                 <span>Description</span>
                 <span>Type</span>
-                <span>Status</span>
                 <span>Amount</span>
                 <span>Date</span>
                 <span>Category</span>
@@ -435,16 +639,14 @@ const Index = () => {
               </div>
               
               {/* Transaction Rows */}
-              {(data?.recentTransactions ?? []).map((transaction: any) => {
+              {recentTransactionsSorted.map((transaction: any) => {
                 const isBackend = typeof transaction.amount === 'number'
-                const normalizedStatus: 'completed' | 'pending' | 'failed' = isBackend ? transaction.status : (transaction.status.toLowerCase() as 'completed' | 'pending' | 'failed')
-                const color = normalizedStatus === 'pending' ? 'warning' : (transaction.type === 'income' || transaction.type === 'Income' ? 'success' : 'destructive')
-                const statusLabel = normalizedStatus === 'completed' ? 'Completed' : normalizedStatus === 'pending' ? 'Pending' : 'Failed'
+                const color = (transaction.type === 'income' || transaction.type === 'Income') ? 'success' : 'destructive'
                 const amountStr = isBackend ? `${(transaction.type === 'income') ? '+' : ''}R$ ${Number(transaction.amount).toLocaleString()}` : transaction.amount
                 const dateStr = isBackend ? format(new Date(transaction.date), 'MMM dd', { locale: ptBR }) : transaction.date
                 const typeLabel = isBackend ? (transaction.type === 'income' ? 'Income' : 'Expense') : transaction.type
                 return (
-                  <div key={transaction.id} className="grid grid-cols-7 gap-4 items-center py-3 border-b border-border last:border-0">
+                  <div key={transaction.id} className="grid grid-cols-6 gap-4 items-center py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${
                         color === 'success' ? 'bg-success' :
@@ -454,22 +656,6 @@ const Index = () => {
                       <span className="font-medium text-foreground">{transaction.description}</span>
                     </div>
                     <span className="text-muted-foreground">{typeLabel}</span>
-                    <div className="flex items-center gap-1">
-                      {normalizedStatus === 'completed' ? (
-                        <CheckCircle className="h-4 w-4 text-success" />
-                      ) : normalizedStatus === 'pending' ? (
-                        <Clock className="h-4 w-4 text-warning" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className={`text-sm ${
-                        normalizedStatus === 'completed' ? 'text-success' :
-                        normalizedStatus === 'pending' ? 'text-warning' :
-                        'text-destructive'
-                      }`}>
-                        {statusLabel}
-                      </span>
-                    </div>
                     <span className={`font-semibold ${
                       color === 'success' ? 'text-success' : 'text-destructive'
                     }`}>
@@ -492,24 +678,188 @@ const Index = () => {
                 )
               })}
             </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t border-border">
-              <Button variant="outline" size="sm">
-                <MoreHorizontal className="h-4 w-4 mr-2" />
-                Export Data
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" onClick={() => setIsExpandedOpen(true)}>
+                Ver mais transações
               </Button>
-              <AddTransactionSheet
-                open={isAddTransactionOpen}
-                onOpenChange={setIsAddTransactionOpen}
-              >
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Transaction
-                </Button>
-              </AddTransactionSheet>
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal Expandido - Recent Transactions */}
+        <Dialog open={isExpandedOpen} onOpenChange={handleExpandedOpenChange}>
+          <DialogContent className="sm:max-w-5xl">
+            <DialogHeader className="flex items-center">
+              <DialogTitle className="text-2xl md:text-3xl font-bold tracking-tight">Transação</DialogTitle>
+            </DialogHeader>
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Fechar"
+                className="absolute right-4 top-4 flex items-center justify-center"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+            <div className="flex flex-col gap-4">
+              {/* Controles de busca, ordenação e filtros */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="md:col-span-2">
+                  <Input
+                    placeholder="Buscar por descrição, categoria, data..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={sortField} onValueChange={(v) => setSortField(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Data</SelectItem>
+                    <SelectItem value="type">Tipo</SelectItem>
+                    <SelectItem value="category">Categoria</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ordem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">Crescente</SelectItem>
+                    <SelectItem value="desc">Decrescente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="income">Entrada</SelectItem>
+                    <SelectItem value="expense">Saída</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {availableCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Ações de filtros e seleção */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={clearFilters}>Limpar filtros</Button>
+                  <Button variant="outline" onClick={toggleSelectAll}>
+                    {allSelected ? "Limpar seleção" : "Selecionar todos (filtrados)"}
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={handleBulkDeleteClick}
+                    disabled={selectedIds.size === 0}
+                  >
+                    Excluir selecionadas ({selectedIds.size})
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista expandida de transações */}
+              <div className="space-y-2 overflow-x-auto">
+                <div className="grid grid-cols-7 gap-4 text-sm font-medium text-muted-foreground pb-2 min-w-[900px]">
+                  <span>Selecionar</span>
+                  <span>Description</span>
+                  <span>Type</span>
+                  <span>Amount</span>
+                  <span>Date</span>
+                  <span>Category</span>
+                  <span>Ações</span>
+                </div>
+                <div className="min-w-[900px]">
+                  <VirtualList
+                    className="divide-y divide-border"
+                    style={{ height: listHeight }}
+                    rowCount={expandedTransactions.length}
+                    rowHeight={64}
+                    overscanCount={8}
+                    rowProps={{ items: expandedTransactions, selectedIds, toggleSelect, handleDelete }}
+                    rowComponent={({ index, style, ariaAttributes, ...rowProps }) => {
+                      const { items, selectedIds, toggleSelect, handleDelete } = rowProps as any
+                      const transaction = items[index]
+                      const color = transaction.type === 'income' ? 'success' : 'destructive'
+                      const amountStr = `${transaction.type === 'income' ? '+' : ''}R$ ${Number(transaction.amount).toLocaleString()}`
+                      const dateStr = format(new Date(transaction.date), 'dd/MM/yyyy', { locale: ptBR })
+                      const typeLabel = transaction.type === 'income' ? 'Income' : 'Expense'
+                      const checked = selectedIds.has(Number(transaction.id))
+                      return (
+                        <div style={style} {...ariaAttributes} className="grid grid-cols-7 gap-4 items-center px-2 min-w-[900px]">
+                          <div className="flex items-center">
+                            <Checkbox checked={checked} onCheckedChange={() => toggleSelect(Number(transaction.id))} />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${color === 'success' ? 'bg-success' : 'bg-destructive'}`} />
+                            <span className="font-medium text-foreground">{transaction.description}</span>
+                          </div>
+                          <span className="text-muted-foreground">{typeLabel}</span>
+                          <span className={`font-semibold ${color === 'success' ? 'text-success' : 'text-destructive'}`}>{amountStr}</span>
+                          <span className="text-muted-foreground">{dateStr}</span>
+                          <span className="text-muted-foreground">{transaction.category}</span>
+                          <div className="flex items-center justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => handleDelete(transaction.id)}
+                              aria-label="Remover transação"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirmação de Exclusão em Lote */}
+        <AlertDialog
+          open={isBulkDeleteDialogOpen}
+          onOpenChange={(open) => setIsBulkDeleteDialogOpen(open)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir transações selecionadas</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação removerá {selectedIds.size} transações. Deseja continuar?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmBulkDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Entradas e Saídas Mensais */}
         <Card className="bg-card border-border">
@@ -679,16 +1029,25 @@ const Index = () => {
         </CardContent>
       </Card>
 
-      {/* Botão Flutuante */}
-      {!isAddTransactionOpen && (
+      {/* Botão Flutuante - Add Transaction (expansão dinâmica) */}
+      <AddTransactionSheet open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
         <Button
-          onClick={() => setIsAddTransactionOpen(true)}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-200 z-50"
-          size="icon"
+          className="group fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full group-hover:rounded-lg bg-violet-600 text-white hover:bg-violet-700 shadow-lg hover:shadow-xl transition-all duration-300 ease-out flex items-center justify-center hover:w-[200px]"
+          aria-label="Adicionar Transação"
         >
-          <Plus className="h-6 w-6" />
+          {/* Ícone + central no estado compacto; desloca para a esquerda quando expande */}
+          <Plus
+            className="h-6 w-6 text-white transition-all duration-300 ease-out group-hover:mr-2"
+          />
+
+          {/* Texto que aparece no hover */}
+          <span
+            className="text-sm font-medium whitespace-nowrap opacity-0 max-w-0 transition-all duration-300 ease-out group-hover:opacity-100 group-hover:max-w-[150px]"
+          >
+            Adicionar Transação
+          </span>
         </Button>
-      )}
+      </AddTransactionSheet>
     </div>
   );
 };
