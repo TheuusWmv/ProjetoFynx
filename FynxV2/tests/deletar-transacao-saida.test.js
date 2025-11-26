@@ -187,12 +187,12 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
     transactions = [
       {
         id: 1,
-        description: 'Despesa Teste Selenium',
-        type: 'expense',
+        description: 'Saída Teste Selenium',
+        type: 'saída',
         status: 'completed',
         amount: 100,
         date: today,
-        category: 'Food',
+        category: 'Moradia',
       },
       {
         id: 2,
@@ -260,8 +260,8 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       await driver.sleep(600);
     }
 
-    // Buscar a linha de transação de SAÍDA como <div class="grid ..."> com os textos de descrição e tipo (aceita 'saída', 'expense' ou 'despesa')
-    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa teste selenium')] and (.//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')] or .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'expense')] or .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa')])]";
+    // Buscar a linha de transação de SAÍDA como <tr> na tabela, com os textos de descrição e tipo
+    const rowXpath = "//tr[.//td[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída teste selenium')] and .//td[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')]]";
     let expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 12000);
 
     // Tentar refresh uma vez se não encontrar
@@ -333,8 +333,8 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
         const desc = await row.getText();
         const descLower = desc.toLowerCase();
         if (
-          descLower.includes('despesa teste selenium') &&
-          (descLower.includes('saída') || descLower.includes('expense') || descLower.includes('despesa'))
+          descLower.includes('saída teste selenium') &&
+          descLower.includes('saída')
         ) {
           rowCount++;
         }
