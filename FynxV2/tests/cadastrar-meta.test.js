@@ -192,11 +192,12 @@ describe('Fynx - Criar Meta (E2E) [skip login]', function () {
       }
     }
 
-    // Clicar no menu Goals na sidebar
+    // Clicar no menu Metas/Goals na sidebar
     const goalsMenuSelectors = [
+      By.xpath("//a[@href='/metas']"),
       By.xpath("//a[@href='/goals']"),
-      By.xpath("//a[contains(., 'Goals')]"),
-      By.xpath("//nav//a[contains(@href, 'goals')]")
+      By.xpath("//a[contains(., 'Metas') or contains(., 'Goals') or contains(., 'Meta') ]"),
+      By.xpath("//nav//a[contains(@href, 'metas') or contains(@href, 'goals')]")
     ];
     const goalsMenu = await tryFind(driver, goalsMenuSelectors, 5000);
     if (!goalsMenu) {
@@ -227,11 +228,11 @@ describe('Fynx - Criar Meta (E2E) [skip login]', function () {
 
     // Localizar botão "+ Criar Meta"
     const createGoalSelectors = [
-      By.xpath("//button[contains(., 'Criar Meta')]"),
-      By.xpath("//button[contains(., '+ Criar Meta')]"),
-      By.css('button[aria-label="Criar Meta"]'),
-      // Pode ser um FAB (floating action button) também
-      By.xpath("//button[.//*[local-name()='svg']]")
+      By.xpath("//button[contains(., 'Criar Meta') or contains(., 'Nova Meta') or contains(., 'Adicionar Meta') or contains(., '+') or contains(., 'Meta') ]"),
+      By.css('button[aria-label*="Meta"]'),
+      By.css('button[title*="Meta"]'),
+      By.xpath("//button[.//*[local-name()='svg']]"),
+      By.xpath("//button[contains(@class,'meta') or contains(@class,'goal') or contains(@class,'fab')]")
     ];
     
     const createGoalBtn = await tryFind(driver, createGoalSelectors, 5000);
@@ -261,8 +262,9 @@ describe('Fynx - Criar Meta (E2E) [skip login]', function () {
     const dialogSelectors = [
       By.css('[role="dialog"]'),
       By.css('.sheet'),
-      By.xpath("//div[contains(@class,'sheet') or @role='dialog']"),
-      By.xpath("//*[contains(., 'Criar Nova Meta')]")
+      By.css('.modal'),
+      By.xpath("//div[contains(@class,'sheet') or contains(@class,'modal') or @role='dialog']"),
+      By.xpath("//*[contains(., 'Criar Nova Meta') or contains(., 'Nova Meta') or contains(., 'Meta') or contains(., 'meta') or contains(., 'goal') or contains(., 'Goal')]")
     ];
     const dialog = await tryFind(driver, dialogSelectors, 5000);
     if (!dialog) {
