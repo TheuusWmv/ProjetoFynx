@@ -252,23 +252,18 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       }
     }
 
-    // Buscar UMA transação de SAÍDA "Despesa Teste Selenium"; se não existir, qualquer linha com tipo Expense
-    let expenseRow = await tryFind(driver, [
-      By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//*[contains(normalize-space(.),'Despesa Teste Selenium')] and .//*[contains(normalize-space(.),'Expense')]]"),
-      By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//span[normalize-space(.)='Expense']]")
-    ], 8000);
-    
+    // Buscar a linha de transação de SAÍDA como <div class="grid ..."> com os textos de descrição e tipo
+    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa teste selenium')] and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')]]";
+    let expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 12000);
+
     // Tentar refresh uma vez se não encontrar
     if (!expenseRow) {
       console.log('Nenhuma transação de saída encontrada, tentando refresh...');
       try { await driver.navigate().refresh(); } catch {}
       await driver.sleep(1500);
-      expenseRow = await tryFind(driver, [
-        By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//*[contains(normalize-space(.),'Despesa Teste Selenium')] and .//*[contains(normalize-space(.),'Expense')]]"),
-        By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//span[normalize-space(.)='Expense']]")
-      ], 5000);
-      
+      expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 5000);
       if (!expenseRow) {
+        await saveDebug(driver, 'no-expense-transaction-to-delete');
         console.log('⚠️  Nenhuma transação de SAÍDA "Despesa Teste Selenium" encontrada para deletar. Pulando teste...');
         return this.skip();
       }
@@ -276,16 +271,13 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
 
     console.log('✓ Transação de SAÍDA encontrada, iniciando exclusão...');
 
-    // localizar botão de remover na mesma linha
+    // localizar botão de remover (lixeira) na mesma linha
     let removeBtn = await tryFind(expenseRow, [
-      By.xpath(".//button[@aria-label='Remover transação']")
+      By.xpath(".//button//*[name()='svg' and (contains(@data-icon,'trash') or contains(@class,'trash') or contains(@class,'Trash'))]/ancestor::button"),
+      By.xpath(".//button[contains(@aria-label,'excluir') or contains(@aria-label,'deletar') or contains(@aria-label,'remover') or contains(@title,'excluir') or contains(@title,'deletar') or contains(@title,'remover')]") ,
+      By.css('button svg.lucide-trash, button svg[data-icon="trash"]'),
+      By.xpath(".//button") // fallback: único botão na célula de ações
     ], 4000);
-
-    if (!removeBtn) {
-      try {
-        removeBtn = await expenseRow.findElement(By.xpath(".//following::button[@aria-label='Remover transação'][1]"));
-      } catch {}
-    }
 
     if (!removeBtn) {
       await saveDebug(driver, 'remove-button-not-found');
@@ -320,18 +312,29 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
     try { await confirmBtn.click(); } catch { await driver.executeScript('arguments[0].click();', confirmBtn); }
 
     console.log('✓ Confirmou exclusão da transação');
-    await driver.sleep(2000); // Aguardar mais tempo para o backend processar
-
-    // Contar quantas transações de saída "Despesa Teste Selenium" existem após exclusão
-    try { await driver.navigate().refresh(); } catch {}
-    await driver.sleep(1000);
-    
-    const countAfter = (await driver.findElements(By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//*[contains(normalize-space(.),'Despesa Teste Selenium')] and .//*[contains(normalize-space(.),'Expense')]]"))).length;
-    console.log(`Transações de SAÍDA "Despesa Teste Selenium" após exclusão: ${countAfter}`);
-
-    // Se chegou aqui e a modal foi confirmada, consideramos sucesso
-    // (o DELETE foi executado, mesmo que o backend tenha problemas)
-    console.log('✓ Teste concluído: clicou na lixeira, confirmou exclusão na modal');
+    // Aguarda até 5s para sumir a linha após exclusão
+    let rowCount = 0;
+    for (let tent = 0; tent < 10; tent++) {
+      try { await driver.navigate().refresh(); } catch {}
+      await driver.sleep(600);
+      // Busca apenas linhas reais de transação (ignorando cabeçalhos)
+      const rows = await driver.findElements(By.xpath(rowXpath));
+      // Filtra para garantir que contenham exatamente a descrição e tipo esperados
+      rowCount = 0;
+      for (const row of rows) {
+        const desc = await row.getText();
+        if (desc.toLowerCase().includes('despesa teste selenium') && desc.toLowerCase().includes('saída')) {
+          rowCount++;
+        }
+      }
+      if (rowCount === 0) break;
+    }
+    console.log(`Transações de SAÍDA "Despesa Teste Selenium" após exclusão: ${rowCount}`);
+    if (rowCount > 0) {
+      await saveDebug(driver, 'row-not-removed');
+      throw new Error('A linha da transação ainda está presente após exclusão.');
+    }
+    console.log('✓ Teste concluído: clicou na lixeira, confirmou exclusão na modal e linha sumiu.');
   });
 });
  
