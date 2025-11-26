@@ -411,9 +411,13 @@ describe('Fynx - Criar Meta (E2E) [skip login]', function () {
     const saveBtn = await tryFind(
       driver,
       [
-        By.xpath("//button[contains(normalize-space(.),'Criar Meta')]"),
-        By.xpath("//button[contains(., 'Criar Meta') and not(contains(., 'Criar Nova Meta'))]"),
-        By.css('button[type="submit"]')
+        By.xpath("//button[contains(.,'Criar Meta') or contains(.,'Salvar') or contains(.,'Adicionar') or contains(.,'Confirmar') or contains(.,'Meta') or contains(.,'meta') or contains(.,'goal') or contains(.,'Goal')]") ,
+        By.css('button[type="submit"]'),
+        By.css('button[aria-label*="Meta" i]'),
+        By.css('button[aria-label*="Salvar" i]'),
+        By.css('button[title*="Meta" i]'),
+        By.css('button[title*="Salvar" i]'),
+        By.xpath("//button[.//*[local-name()='svg']]")
       ],
       4000
     );
