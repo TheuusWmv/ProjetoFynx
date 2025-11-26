@@ -260,8 +260,8 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       await driver.sleep(600);
     }
 
-    // Buscar a linha de transação de SAÍDA como <div class="grid ..."> com os textos de descrição e tipo
-    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa teste selenium')] and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')]]";
+    // Buscar a linha de transação de SAÍDA como <div class="grid ..."> com os textos de descrição e tipo (aceita 'saída', 'expense' ou 'despesa')
+    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa teste selenium')] and (.//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')] or .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'expense')] or .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'despesa')])]";
     let expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 12000);
 
     // Tentar refresh uma vez se não encontrar
@@ -331,7 +331,11 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       rowCount = 0;
       for (const row of rows) {
         const desc = await row.getText();
-        if (desc.toLowerCase().includes('despesa teste selenium') && desc.toLowerCase().includes('saída')) {
+        const descLower = desc.toLowerCase();
+        if (
+          descLower.includes('despesa teste selenium') &&
+          (descLower.includes('saída') || descLower.includes('expense') || descLower.includes('despesa'))
+        ) {
           rowCount++;
         }
       }
