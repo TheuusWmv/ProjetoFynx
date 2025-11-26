@@ -234,22 +234,30 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
   it('deleta UMA transação de SAÍDA via Recent Transactions clicando na lixeira e confirmando na modal', async function () {
 
     await driver.get(BASE_URL + '/dashboard');
-    await driver.sleep(1500);
+    await driver.sleep(1000);
 
-    // FECHAR O TOUR SE ESTIVER ABERTO
+    // FECHAR O TOUR EM LOOP ATÉ A LISTA APARECER (igual ao teste de ENTRADA)
     const tourCloseSelectors = [
       By.xpath("//button[contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'próximo') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'finalizar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'fechar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'pular') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'skip') ]"),
       By.css('button[aria-label="Fechar"], button[aria-label="Close"], button[aria-label*="tour"]'),
       By.css('.tour-close, .joyride-close, .react-joyride__close-button'),
     ];
-    for (let i = 0; i < 5; i++) {
-      const closeBtn = await tryFind(driver, tourCloseSelectors, 1000);
-      if (closeBtn) {
-        try { await closeBtn.click(); } catch (e) { await driver.executeScript('arguments[0].click()', closeBtn); }
-        await driver.sleep(400);
-      } else {
-        break;
+    for (let tent = 0; tent < 10; tent++) {
+      for (let i = 0; i < 3; i++) {
+        const closeBtn = await tryFind(driver, tourCloseSelectors, 700);
+        if (closeBtn) {
+          try { await closeBtn.click(); } catch (e) { await driver.executeScript('arguments[0].click()', closeBtn); }
+          await driver.sleep(300);
+        } else {
+          break;
+        }
       }
+      // Verifica se a tabela de transações recentes apareceu
+      const table = await tryFind(driver, [
+        By.xpath("//table[.//th[contains(.,'Transações Recentes') or contains(.,'Descrição')]]")
+      ], 1200);
+      if (table) break;
+      await driver.sleep(600);
     }
 
     // Buscar a linha de transação de SAÍDA como <div class="grid ..."> com os textos de descrição e tipo
