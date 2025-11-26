@@ -321,14 +321,25 @@ describe('Fynx - Excluir transação de ENTRADA (E2E) [skip login]', function ()
     try { await confirmBtn.click(); } catch { await driver.executeScript('arguments[0].click();', confirmBtn); }
 
     console.log('✓ Confirmou exclusão da transação');
-    await driver.sleep(2000); // Aguardar mais tempo para o backend processar
-
-    // Verificar se a linha sumiu da tabela após exclusão
-    try { await driver.navigate().refresh(); } catch {}
-    await driver.sleep(1000);
-    const rowStillExists = await driver.findElements(By.xpath(rowXpath));
-    console.log(`Transações de ENTRADA "Teste Selenium" após exclusão: ${rowStillExists.length}`);
-    if (rowStillExists.length > 0) {
+    // Aguarda até 5s para sumir a linha após exclusão
+    let rowCount = 0;
+    for (let tent = 0; tent < 10; tent++) {
+      try { await driver.navigate().refresh(); } catch {}
+      await driver.sleep(600);
+      // Busca apenas linhas reais de transação (ignorando cabeçalhos)
+      const rows = await driver.findElements(By.xpath(rowXpath));
+      // Filtra para garantir que contenham exatamente a descrição e tipo esperados
+      rowCount = 0;
+      for (const row of rows) {
+        const desc = await row.getText();
+        if (desc.toLowerCase().includes('entrada teste selenium') && desc.toLowerCase().includes('entrada')) {
+          rowCount++;
+        }
+      }
+      if (rowCount === 0) break;
+    }
+    console.log(`Transações de ENTRADA "Teste Selenium" após exclusão: ${rowCount}`);
+    if (rowCount > 0) {
       await saveDebug(driver, 'row-not-removed');
       throw new Error('A linha da transação ainda está presente após exclusão.');
     }
