@@ -232,8 +232,36 @@ describe('Fynx - Excluir transação de ENTRADA (E2E) [skip login]', function ()
 
 
   it('deleta UMA transação de ENTRADA via Recent Transactions clicando na lixeira e confirmando na modal', async function () {
+
     await driver.get(BASE_URL + '/dashboard');
-    await driver.sleep(1500);
+    await driver.sleep(1000);
+
+    // FECHAR O TOUR EM LOOP ATÉ A LISTA APARECER
+    const tourCloseSelectors = [
+      By.xpath("//button[contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'próximo') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'finalizar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'fechar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'pular') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'skip') ]"),
+      By.css('button[aria-label="Fechar"], button[aria-label="Close"], button[aria-label*="tour"]'),
+      By.css('.tour-close, .joyride-close, .react-joyride__close-button'),
+    ];
+    let listaApareceu = false;
+    for (let tent = 0; tent < 10 && !listaApareceu; tent++) {
+      // Tenta fechar o tour
+      for (let i = 0; i < 3; i++) {
+        const closeBtn = await tryFind(driver, tourCloseSelectors, 700);
+        if (closeBtn) {
+          try { await closeBtn.click(); } catch (e) { await driver.executeScript('arguments[0].click()', closeBtn); }
+          await driver.sleep(300);
+        } else {
+          break;
+        }
+      }
+      // Verifica se a lista de transações apareceu
+      const rows = await driver.findElements(By.xpath("//*[contains(@class,'grid') and contains(@class,'grid-cols-6')][.//*[contains(normalize-space(.),'Income')]]"));
+      if (rows.length > 0) {
+        listaApareceu = true;
+        break;
+      }
+      await driver.sleep(600);
+    }
 
     // Buscar UMA transação de ENTRADA "Teste Selenium"
     let incomeRow = await tryFind(driver, [

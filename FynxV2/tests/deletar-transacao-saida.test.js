@@ -232,8 +232,25 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
 
 
   it('deleta UMA transação de SAÍDA via Recent Transactions clicando na lixeira e confirmando na modal', async function () {
+
     await driver.get(BASE_URL + '/dashboard');
     await driver.sleep(1500);
+
+    // FECHAR O TOUR SE ESTIVER ABERTO
+    const tourCloseSelectors = [
+      By.xpath("//button[contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'próximo') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'finalizar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'fechar') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'pular') or contains(translate(.,'PRÓXIMOFINALIZARFECHARPULARSKIP','próximofinalizarfecharpularskip'),'skip') ]"),
+      By.css('button[aria-label="Fechar"], button[aria-label="Close"], button[aria-label*="tour"]'),
+      By.css('.tour-close, .joyride-close, .react-joyride__close-button'),
+    ];
+    for (let i = 0; i < 5; i++) {
+      const closeBtn = await tryFind(driver, tourCloseSelectors, 1000);
+      if (closeBtn) {
+        try { await closeBtn.click(); } catch (e) { await driver.executeScript('arguments[0].click()', closeBtn); }
+        await driver.sleep(400);
+      } else {
+        break;
+      }
+    }
 
     // Buscar UMA transação de SAÍDA "Despesa Teste Selenium"; se não existir, qualquer linha com tipo Expense
     let expenseRow = await tryFind(driver, [
