@@ -260,9 +260,10 @@ describe('Fynx - Excluir transação de ENTRADA (E2E) [skip login]', function ()
       await driver.sleep(600);
     }
 
-    // Buscar a linha da tabela com a transação "Entrada Teste Selenium" e tipo "Entrada"
-    const rowXpath = "//table//tr[td[contains(normalize-space(.),'Entrada Teste Selenium')] and td[contains(normalize-space(.),'Entrada')]]";
-    let incomeRow = await tryFind(driver, [By.xpath(rowXpath)], 8000);
+
+    // Buscar a linha de transação como <div class="grid ..."> com os textos de descrição e tipo
+    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'entrada teste selenium')] and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'entrada')]]";
+    let incomeRow = await tryFind(driver, [By.xpath(rowXpath)], 12000);
 
     // Tentar refresh uma vez se não encontrar
     if (!incomeRow) {
@@ -271,6 +272,7 @@ describe('Fynx - Excluir transação de ENTRADA (E2E) [skip login]', function ()
       await driver.sleep(1500);
       incomeRow = await tryFind(driver, [By.xpath(rowXpath)], 5000);
       if (!incomeRow) {
+        await saveDebug(driver, 'no-income-transaction-to-delete');
         console.log('⚠️  Nenhuma transação de ENTRADA "Teste Selenium" encontrada para deletar. Pulando teste...');
         return this.skip();
       }
