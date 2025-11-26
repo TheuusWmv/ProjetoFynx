@@ -188,7 +188,7 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       {
         id: 1,
         description: 'Saída Teste Selenium',
-        type: 'saída',
+        type: 'expense',
         status: 'completed',
         amount: 100,
         date: today,
@@ -233,6 +233,9 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
 
   it('deleta UMA transação de SAÍDA via Recent Transactions clicando na lixeira e confirmando na modal', async function () {
 
+  // Salvar HTML da página para depuração logo após o carregamento
+  await saveDebug(driver, 'saida-teste-html-inicial');
+
     await driver.get(BASE_URL + '/dashboard');
     await driver.sleep(1000);
 
@@ -252,27 +255,27 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
           break;
         }
       }
-      // Verifica se a tabela de transações recentes apareceu
-      const table = await tryFind(driver, [
-        By.xpath("//table[.//th[contains(.,'Transações Recentes') or contains(.,'Descrição')]]")
+      // Verifica se a grid de transações recentes apareceu (igual ao teste de ENTRADA)
+      const grid = await tryFind(driver, [
+        By.xpath("//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída teste selenium')]]")
       ], 1200);
-      if (table) break;
+      if (grid) break;
       await driver.sleep(600);
     }
 
-    // Buscar a linha de transação de SAÍDA como <tr> na tabela, com os textos de descrição e tipo
-    const rowXpath = "//tr[.//td[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída teste selenium')] and .//td[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')]]";
+    // Buscar a linha de transação de SAÍDA como <div class="grid ...">, igual ao teste de ENTRADA
+    const rowXpath = "//div[contains(@class,'grid') and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída teste selenium')] and .//span[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'saída')]]";
     let expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 12000);
 
     // Tentar refresh uma vez se não encontrar
     if (!expenseRow) {
-      console.log('Nenhuma transação de saída encontrada, tentando refresh...');
+      console.log('Nenhuma transação de saída "Saída Teste Selenium" encontrada, tentando refresh...');
       try { await driver.navigate().refresh(); } catch {}
       await driver.sleep(1500);
       expenseRow = await tryFind(driver, [By.xpath(rowXpath)], 5000);
       if (!expenseRow) {
         await saveDebug(driver, 'no-expense-transaction-to-delete');
-        console.log('⚠️  Nenhuma transação de SAÍDA "Despesa Teste Selenium" encontrada para deletar. Pulando teste...');
+        console.log('⚠️  Nenhuma transação de SAÍDA "Saída Teste Selenium" encontrada para deletar. Pulando teste...');
         return this.skip();
       }
     }
@@ -331,11 +334,7 @@ describe('Fynx - Excluir transação de SAÍDA (E2E) [skip login]', function () 
       rowCount = 0;
       for (const row of rows) {
         const desc = await row.getText();
-        const descLower = desc.toLowerCase();
-        if (
-          descLower.includes('saída teste selenium') &&
-          descLower.includes('saída')
-        ) {
+        if (desc.toLowerCase().includes('saída teste selenium') && desc.toLowerCase().includes('saída')) {
           rowCount++;
         }
       }
