@@ -113,5 +113,81 @@ export const SCHEMA = {
       FOREIGN KEY (badge_id) REFERENCES badges (id),
       UNIQUE(user_id, badge_id)
     )
+  `,
+  user_whatsapp_accounts: `
+    CREATE TABLE IF NOT EXISTS user_whatsapp_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      phone_hash TEXT NOT NULL,
+      phone_masked TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'verified', 'revoked')) DEFAULT 'pending',
+      verified_at DATETIME,
+      revoked_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      UNIQUE(user_id, phone_hash)
+    )
+  `,
+  whatsapp_otp_challenges: `
+    CREATE TABLE IF NOT EXISTS whatsapp_otp_challenges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      phone_hash TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'used', 'expired', 'blocked')) DEFAULT 'pending',
+      attempts INTEGER DEFAULT 0,
+      send_count INTEGER DEFAULT 1,
+      expires_at DATETIME NOT NULL,
+      last_sent_at DATETIME NOT NULL,
+      next_resend_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      used_at DATETIME,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
+  whatsapp_audit_logs: `
+    CREATE TABLE IF NOT EXISTS whatsapp_audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      phone_hash TEXT,
+      event_type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      provider_message_id TEXT,
+      metadata TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
+  whatsapp_context_refs: `
+    CREATE TABLE IF NOT EXISTS whatsapp_context_refs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      phone_hash TEXT NOT NULL,
+      context_hash TEXT NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME,
+      revoked_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
+  whatsapp_message_events: `
+    CREATE TABLE IF NOT EXISTS whatsapp_message_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      context_ref_id INTEGER,
+      provider_message_id TEXT UNIQUE,
+      action_type TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('processing', 'success', 'failed', 'duplicate')) DEFAULT 'processing',
+      request_payload TEXT,
+      response_payload TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      FOREIGN KEY (context_ref_id) REFERENCES whatsapp_context_refs (id)
+    )
   `
 };

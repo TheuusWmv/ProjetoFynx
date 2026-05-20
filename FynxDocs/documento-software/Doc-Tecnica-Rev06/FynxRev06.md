@@ -19,6 +19,7 @@
 |---|---|---|
 | [Requisitos e Regras](./REQUISITOS_E_REGRAS.md) | Entender requisitos, regras, RNFs e rastreabilidade. | Refatorado |
 | [Fluxos e Casos de Uso](./FLUXOS_E_CASOS_DE_USO.md) | Entender casos de uso, sad paths, processos e diagramas. | Refatorado |
+| [Processo Agil](./PROCESSO_AGIL.md) | Entender como a equipe organiza atividades, comunicacao, validacao visual e desenvolvimento por dominios. | Novo |
 | [Referencia da API](./REFERENCIA_DA_API.md) | Consumir ou manter contratos HTTP. | Refatorado |
 | [Banco de Dados](./BANCO_DE_DADOS.md) | Entender DER, modelo logico, modelo fisico, SQL e dicionario. | Refatorado |
 | [Arquitetura](./ARQUITETURA.md) | Entender arquitetura, camadas, UML, sequencias, modulos e ADRs. | Refatorado |
@@ -39,6 +40,7 @@
 | 25/02/2026 | Apresentacao do Documento de Requisitos | [Roteiro de Apresentacao](./ROTEIRO_DE_APRESENTACAO.md) | Coberto |
 | 04/03/2026 | Termo de Abertura do Projeto | [termo_abertura.md](../../Termo-abertura/termo_abertura.md) | Coberto fora da Rev06 |
 | 04/03/2026 | Mapeamento de Processos | [Fluxos e Casos de Uso](./FLUXOS_E_CASOS_DE_USO.md) | Coberto |
+| 04/03/2026 | Definicao do Processo Agil e organizacao da equipe | [Processo Agil](./PROCESSO_AGIL.md) | Coberto |
 | 04/03/2026 | Prototipos UI/UX | [Prototipos e Telas](./PROTOTIPOS_E_TELAS.md) | Coberto por evidencias visuais |
 | 04/03/2026 | Diagrama de Caso de Uso | [Fluxos e Casos de Uso](./FLUXOS_E_CASOS_DE_USO.md) | Coberto |
 | 18/03/2026 | Diagrama de Classes | [Arquitetura](./ARQUITETURA.md) | Coberto |
@@ -192,12 +194,13 @@ Ao alterar o sistema:
 1. Mudou rota: atualizar `REFERENCIA_DA_API.md`.
 2. Mudou regra de negocio: atualizar `REQUISITOS_E_REGRAS.md`.
 3. Mudou fluxo de usuario: atualizar `FLUXOS_E_CASOS_DE_USO.md`.
-4. Mudou tabela/migration: atualizar `BANCO_DE_DADOS.md`.
-5. Mudou arquitetura/pasta/pattern: atualizar `ARQUITETURA.md`.
-6. Mudou score/ranking/badge: atualizar `MOTOR_DE_GAMIFICACAO.md`.
-7. Mudou tela/prototipo: atualizar `PROTOTIPOS_E_TELAS.md`.
-8. Mudou evidencia academica: atualizar `EVIDENCIAS_DA_IMPLEMENTACAO.md` e `MATRIZ_DE_RASTREABILIDADE.md`.
-9. Mudou contexto para agentes: atualizar `llms.txt`.
+4. Mudou organizacao da equipe ou processo de trabalho: atualizar `PROCESSO_AGIL.md`.
+5. Mudou tabela/migration: atualizar `BANCO_DE_DADOS.md`.
+6. Mudou arquitetura/pasta/pattern: atualizar `ARQUITETURA.md`.
+7. Mudou score/ranking/badge: atualizar `MOTOR_DE_GAMIFICACAO.md`.
+8. Mudou tela/prototipo: atualizar `PROTOTIPOS_E_TELAS.md`.
+9. Mudou evidencia academica: atualizar `EVIDENCIAS_DA_IMPLEMENTACAO.md` e `MATRIZ_DE_RASTREABILIDADE.md`.
+10. Mudou contexto para agentes: atualizar `llms.txt`.
 
 ---
 

@@ -36,6 +36,14 @@ const DOCS = [
     file: "FLUXOS_E_CASOS_DE_USO.md",
   },
   {
+    id: "agile-process",
+    title: "Processo Agil",
+    description: "Organizacao da equipe, comunicacao e ciclo de trabalho",
+    type: "Processos",
+    status: "Novo",
+    file: "PROCESSO_AGIL.md",
+  },
+  {
     id: "api",
     title: "Referencia da API",
     description: "Contratos HTTP reais",

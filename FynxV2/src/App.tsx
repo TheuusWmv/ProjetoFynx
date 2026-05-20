@@ -12,6 +12,7 @@ import Ranking from "./pages/Ranking"
 import NotFound from "./pages/NotFound"
 import Goal from "./pages/Goal"
 import Login from "./pages/Login"
+import Settings from "./pages/Settings"
 import { dataProvider, resourcesConfig } from "./refine/providers";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 
@@ -66,6 +67,14 @@ const App = () => (
                   <ProtectedRoute>
                     <Layout>
                       <Goal />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Settings />
                     </Layout>
                   </ProtectedRoute>
                 } />

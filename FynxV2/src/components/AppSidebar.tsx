@@ -24,6 +24,10 @@ const mainItems = [
   { title: "Goals", url: "/goals", icon: Target },
 ]
 
+const secondaryItems = [
+  { title: "Configurações", url: "/settings", icon: Settings },
+]
+
 interface AppSidebarProps {
   isCollapsed: boolean
   onToggle: () => void
@@ -93,7 +97,24 @@ export function AppSidebar({ isCollapsed, onToggle }: AppSidebarProps) {
         </nav>
       </div>
 
-      <div className={`${isCollapsed ? 'px-2' : 'px-4'} py-4 border-t border-border`}>
+      <div className={`${isCollapsed ? 'px-2' : 'px-4'} py-4 border-t border-border space-y-1`}>
+        {secondaryItems.map((item) => (
+          <NavLink
+            key={item.title}
+            to={item.url}
+            className={({ isActive }) =>
+              `flex items-center ${isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3 py-2'} rounded-lg transition-colors ${isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`
+            }
+            title={isCollapsed ? item.title : undefined}
+          >
+            <item.icon className="h-5 w-5 flex-shrink-0" />
+            {!isCollapsed && <span className="font-medium">{item.title}</span>}
+          </NavLink>
+        ))}
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button

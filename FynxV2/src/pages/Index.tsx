@@ -1059,7 +1059,7 @@ const Index = () => {
         </AlertDialog>
 
         {/* Entradas e Saídas Mensais */}
-        <Card className="bg-card border-border">
+        <Card className="apple-glass transition-all duration-500 hover:border-primary/50 hover:-translate-y-1 hover:shadow-2xl">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 pb-2">
             <div className="flex-1">
               <CardTitle className="text-lg font-semibold">Entradas e Saídas Mensais</CardTitle>

@@ -180,6 +180,17 @@ class Database {
                 await this.run("ALTER TABLE budgets ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
             }
         } catch (err) { console.error('Migration error (budgets):', err); }
+
+        // Migration: WhatsApp internal n8n channel tables
+        try {
+            await this.run(SCHEMA.whatsapp_context_refs);
+            await this.run(SCHEMA.whatsapp_message_events);
+
+            const auditCols = await this.all("PRAGMA table_info('whatsapp_audit_logs')");
+            if (!auditCols.some((col: any) => col.name === 'provider_message_id')) {
+                await this.run("ALTER TABLE whatsapp_audit_logs ADD COLUMN provider_message_id TEXT");
+            }
+        } catch (err) { console.error('Migration error (whatsapp integrations):', err); }
     }
 
     private async seedInitialData() {
