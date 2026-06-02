@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 
 // Configuração do banco SQLite
 const dataDir = path.join(__dirname, '../../data');
-const dbPath = path.join(dataDir, 'fynx.db');
+const dbName = process.env.NODE_ENV === 'test' ? 'fynx_test.db' : 'fynx.db';
+const dbPath = process.env.DB_PATH || path.join(dataDir, dbName);
 
 // Garantir que o diretório existe
 if (!fs.existsSync(dataDir)) {

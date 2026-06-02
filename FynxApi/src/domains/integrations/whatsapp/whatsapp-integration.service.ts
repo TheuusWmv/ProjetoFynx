@@ -25,6 +25,8 @@ import type {
   whatsappTransactionsSearchSchema,
 } from './schemas/whatsapp.schemas.js';
 import type { z } from 'zod';
+import { EvolutionApiClient } from './clients/evolution-api.client.js';
+import type { WhatsappContextRef } from './whatsapp.types.js';
 
 type ResolveInput = z.infer<typeof whatsappResolveSchema>;
 type ContextActionInput = z.infer<typeof whatsappContextActionSchema>;
@@ -81,9 +83,53 @@ export class WhatsappIntegrationService {
   }
 
   static async getDashboard(input: ContextActionInput): Promise<ActionResult> {
-    return this.runAction('dashboard', input, async userId => {
+    return this.runAction('dashboard', input, async (userId, context: WhatsappContextRef) => {
       const data = await getDashboardData(userId);
-      
+
+      if (input.phone) {
+        const normalizedPhone = normalizeWhatsappPhone(input.phone);
+        const phoneHash = hashWhatsappPhone(normalizedPhone);
+        if (phoneHash !== context.phone_hash) {
+          throw new WhatsappDomainError(
+            'WHATSAPP_PHONE_MISMATCH',
+            'O numero de telefone fornecido nao corresponde ao contexto.',
+            403,
+          );
+        }
+
+        let media_sent = false;
+        let media_failed = false;
+        let media_error: string | undefined = undefined;
+        let unifiedDashboardBase64 = '';
+
+        try {
+          unifiedDashboardBase64 = await WhatsappRendererService.renderUnifiedDashboard(data);
+        } catch (err: any) {
+          console.error('Error rendering unified dashboard:', err);
+          media_failed = true;
+          media_error = `Falha ao renderizar imagem do dashboard: ${err.message}`;
+        }
+
+        if (!media_failed && unifiedDashboardBase64) {
+          try {
+            const caption = buildDashboardCaption(data);
+            await EvolutionApiClient.sendImage(normalizedPhone, unifiedDashboardBase64, caption);
+            media_sent = true;
+          } catch (err: any) {
+            console.error('Error sending unified dashboard via Evolution API:', err);
+            media_failed = true;
+            media_error = `Falha ao enviar imagem do dashboard no WhatsApp: ${err.message}`;
+          }
+        }
+
+        return {
+          ...data,
+          media_sent,
+          media_failed,
+          media_error,
+        };
+      }
+
       let dailyPerformanceBase64 = '';
       let monthlyPerformanceBase64 = '';
       let categoryExpenseBase64 = '';
@@ -142,8 +188,53 @@ export class WhatsappIntegrationService {
   }
 
   static async getRanking(input: ContextActionInput): Promise<ActionResult> {
-    return this.runAction('ranking', input, async userId => {
+    return this.runAction('ranking', input, async (userId, context: WhatsappContextRef) => {
       const data = await RankingService.getRankingData(userId);
+
+      if (input.phone) {
+        const normalizedPhone = normalizeWhatsappPhone(input.phone);
+        const phoneHash = hashWhatsappPhone(normalizedPhone);
+        if (phoneHash !== context.phone_hash) {
+          throw new WhatsappDomainError(
+            'WHATSAPP_PHONE_MISMATCH',
+            'O numero de telefone fornecido nao corresponde ao contexto.',
+            403,
+          );
+        }
+
+        let media_sent = false;
+        let media_failed = false;
+        let media_error: string | undefined = undefined;
+        let visual = '';
+
+        try {
+          visual = await WhatsappRendererService.renderRanking(data.globalLeaderboard, userId);
+        } catch (err: any) {
+          console.error('Error rendering ranking visual:', err);
+          media_failed = true;
+          media_error = `Falha ao renderizar imagem do ranking: ${err.message}`;
+        }
+
+        if (!media_failed && visual) {
+          try {
+            const caption = buildRankingCaption(data.globalLeaderboard, userId);
+            await EvolutionApiClient.sendImage(normalizedPhone, visual, caption);
+            media_sent = true;
+          } catch (err: any) {
+            console.error('Error sending ranking via Evolution API:', err);
+            media_failed = true;
+            media_error = `Falha ao enviar imagem do ranking no WhatsApp: ${err.message}`;
+          }
+        }
+
+        return {
+          ...data,
+          media_sent,
+          media_failed,
+          media_error,
+        };
+      }
+
       let visual = '';
       try {
         visual = await WhatsappRendererService.renderRanking(data.globalLeaderboard, userId);
@@ -180,8 +271,50 @@ export class WhatsappIntegrationService {
   }
 
   static async getGoals(input: ContextActionInput): Promise<ActionResult> {
-    return this.runAction('goals', input, async userId => {
+    return this.runAction('goals', input, async (userId, context: WhatsappContextRef) => {
       const data = await GoalsService.getGoalsData(userId);
+
+      if (input.phone) {
+        const normalizedPhone = normalizeWhatsappPhone(input.phone);
+        const phoneHash = hashWhatsappPhone(normalizedPhone);
+        if (phoneHash !== context.phone_hash) {
+          throw new WhatsappDomainError(
+            'WHATSAPP_PHONE_MISMATCH',
+            'O numero de telefone fornecido nao corresponde ao contexto.',
+            403,
+          );
+        }
+
+        let media_sent = false;
+        let media_failed = false;
+        let media_error: string | undefined = undefined;
+
+        const goalsSent = await Promise.all(
+          data.spendingGoals.map(async (goal: any) => {
+            try {
+              const visual = await WhatsappRendererService.renderGoal(goal);
+              const caption = buildGoalCaption(goal);
+              await EvolutionApiClient.sendImage(normalizedPhone, visual, caption);
+              return true;
+            } catch (err: any) {
+              console.error(`Error sending goal ${goal.title}:`, err);
+              media_failed = true;
+              media_error = `Falha ao enviar meta "${goal.title}": ${err.message}`;
+              return false;
+            }
+          })
+        );
+
+        media_sent = goalsSent.length > 0 && goalsSent.every(Boolean);
+
+        return {
+          ...data,
+          media_sent,
+          media_failed,
+          media_error,
+        };
+      }
+
       const spendingGoalsWithVisuals = await Promise.all(
         data.spendingGoals.map(async (goal: any) => {
           try {
@@ -243,7 +376,7 @@ export class WhatsappIntegrationService {
   private static async runAction(
     actionType: string,
     input: ContextActionInput,
-    work: (userId: number) => Promise<unknown>,
+    work: (userId: number, context: any) => Promise<unknown>,
     requireIdempotency = false,
   ): Promise<ActionResult> {
     if (requireIdempotency && !input.providerMessageId) {
@@ -301,7 +434,7 @@ export class WhatsappIntegrationService {
     }
 
     try {
-      const data = await work(context.user_id);
+      const data = await work(context.user_id, context);
       await WhatsappIntegrationRepository.markMessageEventSuccess(event.id, data);
       await UserWhatsappRepository.createAuditLog({
         userId: context.user_id,
@@ -379,4 +512,127 @@ function cleanOptional<T extends Record<string, unknown> | undefined>(value: T):
 
   const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined);
   return Object.fromEntries(entries) as T;
+}
+
+function buildDashboardCaption(data: any): string {
+  const overview = data.overview || [];
+  const monthlyBalance = overview[0]?.value || 'R$ 0,00';
+  const totalIncome = overview[1]?.value || 'R$ 0,00';
+  const totalExpense = overview[2]?.value || 'R$ 0,00';
+  const savingsRate = overview[3]?.value || '0%';
+
+  const formatBrlVal = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(val);
+  };
+
+  const spendingList = data.spendingByCategory || [];
+  const totalSpending = spendingList.reduce((sum: number, c: any) => sum + c.value, 0);
+  const spendingCategoriesText = spendingList
+    .slice(0, 5)
+    .map((c: any) => {
+      const pct = totalSpending > 0 ? Math.round((c.value / totalSpending) * 100) : 0;
+      return `- ${c.category}: ${formatBrlVal(c.value)} (${pct}%)`;
+    })
+    .join('\n');
+
+  const incomeList = data.incomeByCategory || [];
+  const totalIncomeVal = incomeList.reduce((sum: number, c: any) => sum + c.value, 0);
+  const incomeCategoriesText = incomeList
+    .slice(0, 5)
+    .map((c: any) => {
+      const pct = totalIncomeVal > 0 ? Math.round((c.value / totalIncomeVal) * 100) : 0;
+      return `- ${c.category}: ${formatBrlVal(c.value)} (${pct}%)`;
+    })
+    .join('\n');
+
+  return [
+    `📊 *Seu Fynx Consolidado chegou!*`,
+    `Aqui está o resumo do seu desempenho neste mês:`,
+    ``,
+    `*Balanço Mensal*`,
+    `🟢 Entradas: ${totalIncome}`,
+    `🔴 Saídas: ${totalExpense}`,
+    `💰 Saldo do Mês: ${monthlyBalance}`,
+    `📈 Taxa de Poupança: ${savingsRate}`,
+    ``,
+    `*Maiores Despesas*`,
+    spendingCategoriesText || '- Nenhuma despesa registrada.',
+    ``,
+    `*Principais Receitas*`,
+    incomeCategoriesText || '- Nenhuma receita registrada.',
+  ].join('\n');
+}
+
+function buildRankingCaption(leaderboard: any[], currentUserId: number): string {
+  const lines = [
+    `🏆 *Fynx Gamification - Ranking de Economia!*`,
+    `Aqui está a classificação atual dos investidores:`,
+    ``,
+  ];
+
+  leaderboard.slice(0, 5).forEach((user: any) => {
+    const isMe = String(user.userId) === String(currentUserId);
+    const suffix = isMe ? ' *(Você)*' : '';
+    const medal = user.position === 1 ? '🥇' : user.position === 2 ? '🥈' : user.position === 3 ? '🥉' : '•';
+    lines.push(`${medal} *#${user.position}* - ${user.username}${suffix} | Nível ${user.level || 1} | ${(user.score || 0).toLocaleString('pt-BR')} pts`);
+  });
+
+  lines.push(``);
+  lines.push(`Continue poupando e investindo para subir na liga! 🚀`);
+  return lines.join('\n');
+}
+
+function buildGoalCaption(goal: any): string {
+  const formatBrlVal = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(val);
+  };
+
+  const rawPct = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+  const percentageStr = `${rawPct.toFixed(1)}%`;
+
+  let statusText = 'Em progresso';
+  let statusEmoji = '🐷';
+
+  if (goal.goalType === 'saving') {
+    if (rawPct >= 100) {
+      statusText = 'Meta Atingida!';
+      statusEmoji = '🎉';
+    } else {
+      statusText = 'Em progresso';
+      statusEmoji = '🐷';
+    }
+  } else {
+    const isOver = goal.currentAmount > goal.targetAmount;
+    if (isOver) {
+      statusText = `Limite Excedido em ${formatBrlVal(goal.currentAmount - goal.targetAmount)}`;
+      statusEmoji = '🚨';
+    } else if (rawPct > 80) {
+      statusText = 'Próximo ao limite máximo';
+      statusEmoji = '⚠️';
+    } else {
+      statusText = 'Dentro do limite definido';
+      statusEmoji = '✅';
+    }
+  }
+
+  const valueLabel = goal.goalType === 'saving' ? 'Valor Guardado' : 'Gasto Atual';
+  const targetLabel = goal.goalType === 'saving' ? 'Meta Alvo' : 'Limite Definido';
+
+  return [
+    `🎯 *Acompanhamento de Meta Fynx*`,
+    ``,
+    `📌 *Meta:* ${goal.title}`,
+    goal.category ? `🏷️ *Categoria:* ${goal.category}` : ``,
+    `💰 *${valueLabel}:* ${formatBrlVal(goal.currentAmount)}`,
+    `🏳️ *${targetLabel}:* ${formatBrlVal(goal.targetAmount)}`,
+    `📊 *Progresso:* ${percentageStr}`,
+    ``,
+    `${statusEmoji} *Status:* ${statusText}`,
+  ].filter(Boolean).join('\n');
 }

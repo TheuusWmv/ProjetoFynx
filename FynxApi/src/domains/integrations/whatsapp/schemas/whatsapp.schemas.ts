@@ -22,6 +22,7 @@ export const whatsappResolveSchema = z.object({
 export const whatsappContextActionSchema = z.object({
   contextRef: contextRefSchema,
   providerMessageId: providerMessageIdSchema,
+  phone: z.string().min(10).max(30).optional(),
 });
 
 export const whatsappTransactionsSearchSchema = whatsappContextActionSchema.extend({

@@ -12,6 +12,22 @@ export class WhatsappRendererService {
   }
 
   /**
+   * Escapa caracteres especiais de XML/SVG para evitar erros de parse do Sharp (ex: & -> &amp;).
+   */
+  private static escapeXml(unsafe: string): string {
+    return unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
+  }
+
+  /**
    * Converte uma string SVG em buffer PNG e depois em String Base64.
    */
   private static async svgToBase64Png(svgString: string): Promise<string> {
@@ -95,11 +111,11 @@ export class WhatsappRendererService {
         <rect x="360" y="290" width="1200" height="560" rx="32" fill="#000000" fill-opacity="0.4" filter="blur(25px)" />
         <rect x="360" y="280" width="1200" height="560" rx="32" fill="#111524" fill-opacity="0.85" stroke="url(#card-border)" stroke-width="1.5" />
 
-        <text x="440" y="380" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="38" fill="#ffffff">${goal.title}</text>
+        <text x="440" y="380" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="38" fill="#ffffff">${this.escapeXml(goal.title)}</text>
         
         ${goal.category ? `
           <rect x="440" y="405" width="${(goal.category || '').length * 12 + 24}" height="28" rx="14" fill="#1E293B" />
-          <text x="${440 + ((goal.category || '').length * 12 + 24) / 2}" y="423" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="600" font-size="12" fill="#94A3B8" text-anchor="middle">${(goal.category || '').toUpperCase()}</text>
+          <text x="${440 + ((goal.category || '').length * 12 + 24) / 2}" y="423" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="600" font-size="12" fill="#94A3B8" text-anchor="middle">${this.escapeXml((goal.category || '').toUpperCase())}</text>
         ` : ''}
 
         <text x="440" y="530" font-family="'Inter', 'Segoe UI', sans-serif" font-size="16" fill="#94A3B8" font-weight="500" letter-spacing="1">
@@ -333,7 +349,7 @@ export class WhatsappRendererService {
     const mappedCategories = categories.map((cat, idx) => {
       const percentage = total > 0 ? Math.round((cat.value / total) * 100) : 0;
       return {
-        name: cat.category,
+        name: this.escapeXml(cat.category),
         amount: cat.value,
         color: palette[idx % palette.length],
         percentage,
@@ -483,11 +499,11 @@ export class WhatsappRendererService {
                 <circle cx="95" cy="34" r="20" fill="${isMe ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.06)'}" 
                         stroke="${isMe ? 'rgba(168, 85, 247, 0.5)' : 'rgba(255, 255, 255, 0.1)'}" stroke-width="1" />
                 <text x="95" y="40" font-family="'Inter', sans-serif" font-weight="700" font-size="12" fill="#ffffff" text-anchor="middle">
-                  ${(user.username || 'US').substring(0, 2).toUpperCase()}
+                  ${this.escapeXml((user.username || 'US').substring(0, 2).toUpperCase())}
                 </text>
 
                 <text x="135" y="30" font-family="'Inter', sans-serif" font-weight="700" font-size="18" fill="${isMe ? '#e9d5ff' : '#ffffff'}">
-                  ${user.username} ${isMe ? ' (Você)' : ''}
+                  ${this.escapeXml(user.username)} ${isMe ? ' (Você)' : ''}
                 </text>
                 <text x="135" y="48" font-family="'Inter', sans-serif" font-weight="700" font-size="10" fill="#52525b" letter-spacing="1">NÍVEL ${user.level || 1}</text>
 
@@ -520,11 +536,290 @@ export class WhatsappRendererService {
             `;
           }).join('')}
         </g>
-
         <text x="960" y="990" font-family="'Inter', 'Segoe UI', sans-serif" font-size="14" fill="#374151" letter-spacing="1" text-anchor="middle">Gerado automaticamente pelo agente de inteligência Fynx</text>
       </svg>
     `;
 
     return this.svgToBase64Png(svgString);
   }
+
+  static async renderUnifiedDashboard(data: {
+    dailyPerformance: { day: string; date: string; income: number; expense: number }[];
+    monthlyPerformance: { month: string; income: number; expense: number }[];
+    spendingByCategory: { category: string; value: number }[];
+    incomeByCategory: { category: string; value: number }[];
+  }): Promise<string> {
+    const incomeColor = '#8b5cf6'; // Roxo
+    const expenseColor = '#84cc16'; // Limão
+
+    // --- 1. Processamento Quadrante 1: Histórico Diário (Area Chart) ---
+    const dailyIncomes = data.dailyPerformance.map(d => d.income);
+    const dailyExpenses = data.dailyPerformance.map(d => d.expense);
+    const dailyMaxVal = Math.max(...dailyIncomes, ...dailyExpenses, 1) * 1.15;
+    const dailyStartX = 110;
+    const dailyStartY = 480;
+    const dailyWidth = 770;
+    const dailyHeight = 180;
+
+    const getDailyPoints = (values: number[]) => {
+      return values.map((val, idx) => {
+        const x = dailyStartX + idx * (dailyWidth / (values.length - 1 || 1));
+        const y = dailyStartY - (val / dailyMaxVal) * dailyHeight;
+        return `${x},${y}`;
+      });
+    };
+
+    const dailyIncomePoints = getDailyPoints(dailyIncomes);
+    const dailyExpensePoints = getDailyPoints(dailyExpenses);
+
+    const getAreaPathString = (points: string[], startX: number, startY: number, width: number) => {
+      if (points.length === 0) return '';
+      const firstPoint = points[0]?.split(',') || ['0', '0'];
+      const lastPoint = points[points.length - 1]?.split(',') || ['0', '0'];
+      return `M ${firstPoint[0] || '0'},${startY} L ${points.join(' L ')} L ${lastPoint[0] || '0'},${startY} Z`;
+    };
+
+    const dailyIncomeAreaPath = getAreaPathString(dailyIncomePoints, dailyStartX, dailyStartY, dailyWidth);
+    const dailyExpenseAreaPath = getAreaPathString(dailyExpensePoints, dailyStartX, dailyStartY, dailyWidth);
+
+    // --- 2. Processamento Quadrante 3: Histórico Mensal (Bar Chart) ---
+    const monthlyIncomes = data.monthlyPerformance.map(m => m.income);
+    const monthlyExpenses = data.monthlyPerformance.map(m => m.expense);
+    const monthlyMaxVal = Math.max(...monthlyIncomes, ...monthlyExpenses, 1) * 1.15;
+    const monthlyStartX = 110;
+    const monthlyStartY = 900;
+    const monthlyWidth = 770;
+    const monthlyHeight = 180;
+    const numMonths = data.monthlyPerformance.length || 1;
+    const groupWidth = monthlyWidth / numMonths;
+    const barWidth = Math.min(24, groupWidth * 0.25);
+
+    let monthlyBarsSvg = '';
+    data.monthlyPerformance.forEach((m, idx) => {
+      const groupCenter = monthlyStartX + (idx + 0.5) * groupWidth;
+      const incVal = m.income;
+      const expVal = m.expense;
+      const incHeight = (incVal / monthlyMaxVal) * monthlyHeight;
+      const expHeight = (expVal / monthlyMaxVal) * monthlyHeight;
+      const incX = groupCenter - barWidth - 4;
+      const expX = groupCenter + 4;
+      const incY = monthlyStartY - incHeight;
+      const expY = monthlyStartY - expHeight;
+
+      monthlyBarsSvg += `
+        <rect x="${incX}" y="${incY}" width="${barWidth}" height="${incHeight}" rx="4" fill="${incomeColor}" />
+        <text x="${incX + barWidth / 2}" y="${incY - 6}" font-family="'Inter', sans-serif" font-weight="700" font-size="10" fill="${incomeColor}" text-anchor="middle">${WhatsappRendererService.formatBRL(incVal)}</text>
+        
+        <rect x="${expX}" y="${expY}" width="${barWidth}" height="${expHeight}" rx="4" fill="${expenseColor}" />
+        <text x="${expX + barWidth / 2}" y="${expY - 6}" font-family="'Inter', sans-serif" font-weight="700" font-size="10" fill="${expenseColor}" text-anchor="middle">${WhatsappRendererService.formatBRL(expVal)}</text>
+      `;
+    });
+
+    // --- 3. Processamento Quadrantes 2 e 4: Donut Charts (Expenses & Income) ---
+    const expensePalette = ["#ef4444", "#f97316", "#8b5cf6", "#06b6d4", "#10b981", "#6b7280", "#eab308"];
+    const incomePalette = ["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#14b8a6", "#22c55e", "#6366f1"];
+
+    const getDonutSlices = (
+      categories: { category: string; value: number }[],
+      cx: number,
+      cy: number,
+      r: number,
+      palette: string[]
+    ) => {
+      const circumference = 2 * Math.PI * r;
+      // Agrupa em no máximo 4 categorias principais e o resto em "Outros"
+      let processed: { category: string; value: number }[] = categories.slice(0, 4);
+      if (categories.length > 4) {
+        const otherVal = categories.slice(4).reduce((sum, c) => sum + c.value, 0);
+        processed.push({ category: 'Outros', value: otherVal });
+      }
+
+      const total = processed.reduce((sum, c) => sum + c.value, 0);
+      const mapped = processed.map((cat, idx) => {
+        const percentage = total > 0 ? Math.round((cat.value / total) * 100) : 0;
+        return {
+          name: this.escapeXml(cat.category),
+          amount: cat.value,
+          color: palette[idx % palette.length] || '#ccc',
+          percentage,
+        };
+      });
+
+      let accumulatedPercentage = 0;
+      return {
+        total,
+        slices: mapped.map(slice => {
+          const strokeDasharray = `${(slice.percentage / 100) * circumference} ${circumference}`;
+          const strokeDashoffset = -((accumulatedPercentage / 100) * circumference);
+          accumulatedPercentage += slice.percentage;
+          return {
+            ...slice,
+            strokeDasharray,
+            strokeDashoffset,
+          };
+        })
+      };
+    };
+
+    const donutR = 65;
+    const donutExpenses = getDonutSlices(data.spendingByCategory, 1110, 370, donutR, expensePalette);
+    const donutIncome = getDonutSlices(data.incomeByCategory, 1110, 790, donutR, incomePalette);
+
+    const svgString = `
+      <svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0B0D19" />
+            <stop offset="100%" stop-color="#030408" />
+          </linearGradient>
+          <linearGradient id="card-border" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12" />
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
+          </linearGradient>
+          <linearGradient id="income-area-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="${incomeColor}" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="${incomeColor}" stop-opacity="0.0" />
+          </linearGradient>
+          <linearGradient id="expense-area-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="${expenseColor}" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="${expenseColor}" stop-opacity="0.0" />
+          </linearGradient>
+          <filter id="neon-glow-income" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <filter id="neon-glow-expense" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <!-- Background -->
+        <rect width="1920" height="1080" fill="url(#bg-grad)" />
+        <circle cx="200" cy="200" r="300" fill="${incomeColor}" fill-opacity="0.02" filter="blur(80px)" />
+        <circle cx="1720" cy="880" r="400" fill="${expenseColor}" fill-opacity="0.02" filter="blur(100px)" />
+
+        <!-- Header -->
+        <text x="960" y="80" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="800" font-size="36" fill="#ffffff" letter-spacing="6" text-anchor="middle">FYNX CONSOLIDADO</text>
+        <text x="960" y="120" font-family="'Inter', 'Segoe UI', sans-serif" font-size="14" fill="#64748B" letter-spacing="3" text-anchor="middle">PAINEL DE DESEMPENHO FINANCEIRO</text>
+
+        <!-- Quadrante 1 Background (Top-Left) -->
+        <rect x="60" y="180" width="870" height="380" rx="24" fill="#111524" fill-opacity="0.85" stroke="url(#card-border)" stroke-width="1.5" />
+        <text x="110" y="235" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="20" fill="#ffffff">Desempenho Diário</text>
+        <text x="110" y="260" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#64748B">Fluxo de caixa nos últimos 30 dias</text>
+        
+        <g transform="translate(680, 220)">
+          <circle cx="0" cy="0" r="6" fill="${incomeColor}" />
+          <text x="15" y="4" font-family="'Inter', sans-serif" font-size="12" font-weight="600" fill="#ffffff">Receitas</text>
+          <circle cx="90" cy="0" r="6" fill="${expenseColor}" />
+          <text x="105" y="4" font-family="'Inter', sans-serif" font-size="12" font-weight="600" fill="#ffffff">Despesas</text>
+        </g>
+
+        <!-- Grid Lines Q1 -->
+        <line x1="110" y1="300" x2="880" y2="300" stroke="#1E293B" stroke-dasharray="4" stroke-width="1" />
+        <line x1="110" y1="390" x2="880" y2="390" stroke="#1E293B" stroke-dasharray="4" stroke-width="1" />
+        <line x1="110" y1="480" x2="880" y2="480" stroke="#334155" stroke-width="1" />
+
+        <!-- Q1 Chart -->
+        <path d="${dailyIncomeAreaPath}" fill="url(#income-area-grad)" />
+        <path d="${dailyExpenseAreaPath}" fill="url(#expense-area-grad)" />
+        <path d="M ${dailyIncomePoints.join(' L ')}" fill="none" stroke="${incomeColor}" stroke-width="3" filter="url(#neon-glow-income)" />
+        <path d="M ${dailyExpensePoints.join(' L ')}" fill="none" stroke="${expenseColor}" stroke-width="3" filter="url(#neon-glow-expense)" />
+
+        ${data.dailyPerformance.map((d, idx) => {
+          const x = dailyStartX + idx * (dailyWidth / (data.dailyPerformance.length - 1 || 1));
+          if (idx % 6 !== 0 && idx !== data.dailyPerformance.length - 1) return '';
+          return `<text x="${x}" y="515" font-family="'Inter', sans-serif" font-weight="600" font-size="11" fill="#475569" text-anchor="middle">${d.day}</text>`;
+        }).join('')}
+
+
+        <!-- Quadrante 3 Background (Bottom-Left) -->
+        <rect x="60" y="600" width="870" height="380" rx="24" fill="#111524" fill-opacity="0.85" stroke="url(#card-border)" stroke-width="1.5" />
+        <text x="110" y="655" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="20" fill="#ffffff">Desempenho Mensal</text>
+        <text x="110" y="680" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#64748B">Comparação nos últimos meses</text>
+
+        <!-- Grid Lines Q3 -->
+        <line x1="110" y1="720" x2="880" y2="720" stroke="#1E293B" stroke-dasharray="4" stroke-width="1" />
+        <line x1="110" y1="810" x2="880" y2="810" stroke="#1E293B" stroke-dasharray="4" stroke-width="1" />
+        <line x1="110" y1="900" x2="880" y2="900" stroke="#334155" stroke-width="1" />
+
+        <!-- Q3 Chart (Bars) -->
+        ${monthlyBarsSvg}
+        ${data.monthlyPerformance.map((m, idx) => {
+          const x = monthlyStartX + (idx + 0.5) * groupWidth;
+          return `<text x="${x}" y="935" font-family="'Inter', sans-serif" font-weight="600" font-size="12" fill="#64748B" text-anchor="middle">${m.month.toUpperCase()}</text>`;
+        }).join('')}
+
+
+        <!-- Quadrante 2 Background (Top-Right: Expenses by Category) -->
+        <rect x="970" y="180" width="890" height="380" rx="24" fill="#111524" fill-opacity="0.85" stroke="url(#card-border)" stroke-width="1.5" />
+        <text x="1010" y="235" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="20" fill="#ffffff">Distribuição de Despesas</text>
+        <text x="1010" y="260" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#64748B">Gastos por categoria no mês atual</text>
+
+        <!-- Q2 Donut Circle -->
+        <circle cx="1120" cy="380" r="${donutR}" fill="none" stroke="#1E293B" stroke-width="20" />
+        ${donutExpenses.slices.map(slice => `
+          <circle cx="1120" cy="380" r="${donutR}" fill="none" stroke="${slice.color}" stroke-width="20"
+                  stroke-dasharray="${slice.strokeDasharray}" stroke-dashoffset="${slice.strokeDashoffset}"
+                  transform="rotate(-90 1120 380)" stroke-linecap="round" />
+        `).join('')}
+        <text x="1120" y="375" font-family="'Inter', sans-serif" font-size="10" font-weight="600" fill="#64748B" text-anchor="middle">DESPESAS</text>
+        <text x="1120" y="395" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#ffffff" text-anchor="middle">${WhatsappRendererService.formatBRL(donutExpenses.total)}</text>
+
+        <!-- Q2 Legend -->
+        <g transform="translate(1260, 275)">
+          ${donutExpenses.slices.map((slice, idx) => {
+            const yOffset = idx * 46;
+            return `
+              <g transform="translate(0, ${yOffset})">
+                <circle cx="10" cy="10" r="7" fill="${slice.color}" />
+                <text x="30" y="15" font-family="'Inter', sans-serif" font-weight="700" font-size="14" fill="#ffffff">${slice.name}</text>
+                <text x="240" y="15" font-family="'Inter', sans-serif" font-weight="800" font-size="14" fill="#ffffff" text-anchor="end">${slice.percentage}%</text>
+                <text x="340" y="15" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#64748B" text-anchor="end">${WhatsappRendererService.formatBRL(slice.amount)}</text>
+                ${idx < donutExpenses.slices.length - 1 ? `<line x1="0" y1="30" x2="340" y2="30" stroke="#1E293B" stroke-width="1" />` : ''}
+              </g>
+            `;
+          }).join('')}
+        </g>
+
+
+        <!-- Quadrante 4 Background (Bottom-Right: Income by Category) -->
+        <rect x="970" y="600" width="890" height="380" rx="24" fill="#111524" fill-opacity="0.85" stroke="url(#card-border)" stroke-width="1.5" />
+        <text x="1010" y="655" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="20" fill="#ffffff">Distribuição de Receitas</text>
+        <text x="1010" y="680" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#64748B">Entradas por categoria no mês atual</text>
+
+        <!-- Q4 Donut Circle -->
+        <circle cx="1120" cy="800" r="${donutR}" fill="none" stroke="#1E293B" stroke-width="20" />
+        ${donutIncome.slices.map(slice => `
+          <circle cx="1120" cy="800" r="${donutR}" fill="none" stroke="${slice.color}" stroke-width="20"
+                  stroke-dasharray="${slice.strokeDasharray}" stroke-dashoffset="${slice.strokeDashoffset}"
+                  transform="rotate(-90 1120 800)" stroke-linecap="round" />
+        `).join('')}
+        <text x="1120" y="795" font-family="'Inter', sans-serif" font-size="10" font-weight="600" fill="#64748B" text-anchor="middle">RECEITAS</text>
+        <text x="1120" y="815" font-family="'Inter', sans-serif" font-weight="800" font-size="15" fill="#ffffff" text-anchor="middle">${WhatsappRendererService.formatBRL(donutIncome.total)}</text>
+
+        <!-- Q4 Legend -->
+        <g transform="translate(1260, 695)">
+          ${donutIncome.slices.map((slice, idx) => {
+            const yOffset = idx * 46;
+            return `
+              <g transform="translate(0, ${yOffset})">
+                <circle cx="10" cy="10" r="7" fill="${slice.color}" />
+                <text x="30" y="15" font-family="'Inter', sans-serif" font-weight="700" font-size="14" fill="#ffffff">${slice.name}</text>
+                <text x="240" y="15" font-family="'Inter', sans-serif" font-weight="800" font-size="14" fill="#ffffff" text-anchor="end">${slice.percentage}%</text>
+                <text x="340" y="15" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#64748B" text-anchor="end">${WhatsappRendererService.formatBRL(slice.amount)}</text>
+                ${idx < donutIncome.slices.length - 1 ? `<line x1="0" y1="30" x2="340" y2="30" stroke="#1E293B" stroke-width="1" />` : ''}
+              </g>
+            `;
+          }).join('')}
+        </g>
+
+        <!-- Footer -->
+        <text x="960" y="1030" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" fill="#334155" letter-spacing="1" text-anchor="middle">Painel Gerado pelo Agente Fynx Inteligência Financeira</text>
+      </svg>
+    `;
+
+    return WhatsappRendererService.svgToBase64Png(svgString);
+  }
 }
+

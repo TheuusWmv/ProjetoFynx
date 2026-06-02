@@ -1,4 +1,14 @@
 {
+  "name": "projeto-fynx-root",
+  "version": "1.0.0",
+  "description": "Root configuration and script orchestration for Fynx",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix FynxApi && npm install --prefix FynxV2",
+    "test:backend": "npm run test --prefix FynxApi",
+    "test:frontend": "npm run test:e2e --prefix FynxV2",
+    "test:security": "python .agent/skills/vulnerability-scanner/scripts/security_scan.py .",
+    "test:all": "node FynxTests/run_tests.js"
+  },
   "devDependencies": {
     "depcheck": "^1.4.7"
   }
