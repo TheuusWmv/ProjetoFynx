@@ -1,54 +1,54 @@
-# Guia Central de Implementacao: WhatsApp + n8n + LLM + FynxApi
+# Guia Central de Implementação: WhatsApp + n8n + LLM + FynxApi
 
 ## 1. Objetivo
 
-Este documento define a arquitetura, os fluxos, os contratos HTTP, as tabelas, os servicos e as regras de seguranca para integrar o Fynx com WhatsApp usando n8n, Evolution API e uma LLM multimodal.
+Este documento define a arquitetura, os fluxos, os contratos HTTP, as tabelas, os serviços e as regras de Segurança para integrar o Fynx com WhatsApp usando n8n, Evolution API e uma LLM multimodal.
 
-O objetivo principal e permitir que um usuario do Fynx interaja pelo WhatsApp para:
+O objetivo principal é permitir que um usuário do Fynx interaja pelo WhatsApp para:
 
-- consultar metricas financeiras;
-- consultar transacoes;
-- cadastrar transacoes por texto, audio, imagem ou video;
+- consultar métricas financeiras;
+- consultar transações;
+- cadastrar transações por texto, áudio, imagem ou vídeo;
 - consultar metas;
 - consultar categorias;
 - receber respostas financeiras contextualizadas;
-- executar acoes somente dentro do escopo do proprio usuario.
+- executar ações somente dentro do escopo do próprio usuário.
 
-A LLM nao deve acessar banco de dados diretamente, nao deve receber `user_id`, nao deve receber telefone real, nao deve receber JWT do usuario e nao deve ter liberdade para consultar dados fora das tools autorizadas.
+A LLM não deve acessar banco de dados diretamente, não deve receber `user_id`, não deve receber telefone real, não deve receber JWT do usuário e não deve ter liberdade para consultar dados fora das tools autorizadas.
 
-## 2. Decisao Arquitetural
+## 2. Decisão Arquitetural
 
-### 2.1. Decisao recomendada
+### 2.1. Decisão recomendada
 
-A integracao deve ser feita por meio de endpoints HTTP internos no `FynxApi`.
+A integração deve ser feita por meio de endpoints HTTP internos no `FynxApi`.
 
-O n8n deve chamar o backend usando um token de servico. O backend resolve o numero de WhatsApp para um usuario verificado e executa as regras de negocio usando os servicos ja existentes.
+O n8n deve chamar o backend usando um token de serviço. O backend resolve o número de WhatsApp para um usuário verificado e executa as regras de negócio usando os serviços já existentes.
 
-### 2.2. O que nao fazer
+### 2.2. O que não fazer
 
-Nao permitir que o n8n leia ou escreva diretamente no banco SQLite.
+Não permitir que o n8n leia ou escreva diretamente no banco SQLite.
 
 Motivos:
 
-- ignora validacoes de dominio;
-- ignora autenticacao e autorizacao do backend;
-- ignora efeitos colaterais, como gamificacao e eventos;
+- ignora validações de domínio;
+- ignora autenticação e autorização do backend;
+- ignora efeitos colaterais, como gamificação e eventos;
 - cria uma segunda API informal dentro do n8n;
-- aumenta risco de vazamento entre usuarios;
-- dificulta migracao futura para nuvem ou PostgreSQL;
-- acopla o workflow ao schema fisico do banco.
+- aumenta risco de vazamento entre usuários;
+- dificulta migração futura para nuvem ou PostgreSQL;
+- acopla o workflow ao schema físico do banco.
 
 ### 2.3. Papel de cada componente
 
 ```text
 +------------------+       +-------------------+       +-------------------+
 | Fynx Web         |       | FynxApi           |       | SQLite local      |
-| Usuario logado   +------>+ Auth, Financial,  +------>+ Dados do Fynx     |
-| cadastra numero  | JWT   | WhatsApp Domain   | SQL   |                   |
+| Usuário logado   +------>+ Auth, Financial,  +------>+ Dados do Fynx     |
+| cadastra número  | JWT   | WhatsApp Domain   | SQL   |                   |
 +------------------+       +-------------------+       +-------------------+
 
 +------------------+       +-------------------+       +-------------------+
-| WhatsApp Usuario |       | Evolution API     |       | n8n               |
+| WhatsApp Usuário |       | Evolution API     |       | n8n               |
 | envia mensagem   +------>+ recebe mensagem   +------>+ orquestra fluxo   |
 +------------------+       +-------------------+       +---------+---------+
                                                                 |
@@ -56,11 +56,11 @@ Motivos:
                                                                 v
                                                         +-------+--------+
                                                         | FynxApi        |
-                                                        | resolve numero |
-                                                        | executa acoes  |
+                                                        | resolve número |
+                                                        | executa ações  |
                                                         +-------+--------+
                                                                 |
-                                                                | dados minimos
+                                                                | dados mínimos
                                                                 v
                                                         +-------+--------+
                                                         | LLM multimodal |
@@ -70,7 +70,7 @@ Motivos:
 
 ## 3. Estado Atual Da Codebase
 
-O `FynxApi` ja possui uma estrutura separada por dominios:
+O `FynxApi` já possui uma estrutura separada por domínios:
 
 ```text
 FynxApi/
@@ -103,7 +103,7 @@ O roteador central atual registra rotas protegidas por JWT para:
 /api/v1/categories/custom
 ```
 
-O novo dominio deve seguir o mesmo padrao: `routes`, `controller`, `service`, `types` e repositorios quando necessario.
+O novo domínio deve seguir o mesmo padrão: `routes`, `controller`, `service`, `types` e repositórios quando necessário.
 
 ## 4. Arquitetura De Pastas Proposta
 
@@ -137,11 +137,11 @@ FynxApi/
           whatsapp-session.service.ts
 ```
 
-Essa organizacao segue melhor o estilo ja usado no projeto, que possui `config/` dentro de dominios como `analytics/dashboard/config`. O modulo de WhatsApp tem mais superficie de integracao do que `transactions` ou `goals`, entao vale separar `clients`, `repositories` e `schemas` para evitar que o service vire um arquivo grande demais.
+Essa organização segue melhor o estilo já usado no projeto, que possui `config/` dentro de domínios como `analytics/dashboard/config`. O módulo de WhatsApp tem mais superficie de integração do que `transactions` ou `goals`, então vale separar `clients`, `repositories` e `schemas` para evitar que o service vire um arquivo grande demais.
 
-### 4.2. Alternativa minima para MVP
+### 4.2. Alternativa mínima para MVP
 
-Se a primeira entrega precisar ser menor, a estrutura minima aceitavel e:
+Se a primeira entrega precisar ser menor, a estrutura mínima aceitável e:
 
 ```text
 FynxApi/
@@ -165,16 +165,16 @@ FynxApi/
           user-whatsapp.repository.ts
 ```
 
-Essa versao funciona, mas a estrutura recomendada e melhor para manutencao.
+Essa versão funciona, mas a estrutura recomendada e melhor para manutenção.
 
 ### 4.3. Responsabilidade dos arquivos
 
 ```text
 config/whatsapp.config.ts
-  Centraliza configuracoes de OTP, rate limit, permissao, Evolution API, mock local e contextRef.
+  Centraliza configurações de OTP, rate limit, permissão, Evolution API, mock local e contextRef.
 
 whatsapp.routes.ts
-  Define rotas usadas pelo usuario logado no Fynx Web.
+  Define rotas usadas pelo usuário logado no Fynx Web.
 
 whatsapp-integration.routes.ts
   Define rotas internas usadas pelo n8n.
@@ -186,25 +186,25 @@ whatsapp-integration.controller.ts
   Recebe request/response das rotas internas do n8n.
 
 whatsapp.service.ts
-  Orquestra casos de uso do usuario logado: solicitar OTP, confirmar OTP, listar e revogar numero.
+  Orquestra casos de uso do usuário logado: solicitar OTP, confirmar OTP, listar e revogar número.
 
 whatsapp-integration.service.ts
-  Orquestra casos de uso do n8n: resolver numero, consultar dashboard, criar transacao e consultar dados.
+  Orquestra casos de uso do n8n: resolver número, consultar dashboard, criar transação e consultar dados.
 
 whatsapp.schemas.ts
   Schemas Zod para validar payloads recebidos.
 
 whatsapp.types.ts
-  Tipos TypeScript do dominio.
+  Tipos TypeScript do domínio.
 
 whatsapp-auth.middleware.ts
-  Valida o token de servico usado pelo n8n.
+  Valida o token de serviço usado pelo n8n.
 
 evolution-api.client.ts
   Cliente HTTP para enviar mensagens pela Evolution API.
 
 otp.service.ts
-  Gera, hasheia, expira e valida codigos OTP.
+  Gera, hasheia, expira e valida códigos OTP.
 
 user-whatsapp.repository.ts
   Acesso a tabela user_whatsapp_accounts e desafios OTP.
@@ -213,10 +213,10 @@ whatsapp-session.service.ts
   Cria e valida contextRef usado em chamadas internas.
 
 whatsapp-audit.repository.ts
-  Persiste auditoria de mensagens, intencoes, acoes e erros.
+  Persiste auditoria de mensagens, intenções, ações e erros.
 ```
 
-### 4.4. Configuracao do dominio
+### 4.4. Configuração do domínio
 
 Arquivo recomendado:
 
@@ -224,7 +224,7 @@ Arquivo recomendado:
 FynxApi/src/domains/integrations/whatsapp/config/whatsapp.config.ts
 ```
 
-Conteudo conceitual:
+Conteúdo conceitual:
 
 ```ts
 export const whatsappConfig = {
@@ -261,15 +261,15 @@ export const whatsappConfig = {
 
 Esse arquivo evita espalhar `process.env` por controller, service e client.
 
-## 5. Camadas E Comunicacao Interna
+## 5. Camadas E Comunicação Interna
 
-### 5.1. Fluxo de cadastro de numero atraves do Fynx Web
+### 5.1. Fluxo de cadastro de número atraves do Fynx Web
 
 ```text
 Fynx Web
   |
   | POST /api/v1/whatsapp/accounts/request-verification
-  | Authorization: Bearer <JWT usuario>
+  | Authorization: Bearer <JWT usuário>
   v
 Express Router
   |
@@ -292,13 +292,13 @@ UserWhatsappRepository ---------------> SQLite
 EvolutionApiClient -------------------> Evolution API
   |
   v
-WhatsApp do usuario recebe codigo
+WhatsApp do usuário recebe código
 ```
 
 ### 5.2. Fluxo de uma mensagem recebida pelo WhatsApp
 
 ```text
-Usuario envia mensagem no WhatsApp
+Usuário envia mensagem no WhatsApp
   |
   v
 Evolution API
@@ -312,29 +312,29 @@ n8n
   v
 FynxApi
   |
-  | valida token de servico
+  | valida token de serviço
   | normaliza phone
   | busca phone_hash verificado
   | cria contextRef opaco
   v
 n8n recebe contexto autorizado
   |
-  | envia mensagem/midia para LLM com tools limitadas
+  | envia mensagem/mídia para LLM com tools limitadas
   v
-LLM retorna intencao estruturada
+LLM retorna intenção estruturada
   |
   | n8n chama action endpoint do FynxApi
   v
-FynxApi executa regra de negocio
+FynxApi executa regra de negócio
   |
   v
 n8n envia resposta via Evolution API
   |
   v
-WhatsApp do usuario
+WhatsApp do usuário
 ```
 
-### 5.3. Fluxo de criacao de transacao por mensagem
+### 5.3. Fluxo de criação de transação por mensagem
 
 ```text
 Mensagem:
@@ -345,7 +345,7 @@ Evolution API
   v
 n8n
   |
-  | resolve numero
+  | resolve número
   v
 FynxApi
   |
@@ -363,8 +363,8 @@ LLM
   |   data: {
   |     type: "expense",
   |     amount: 45,
-  |     description: "Almoco",
-  |     category: "Alimentacao",
+  |     description: "Almoço",
+  |     category: "Alimentação",
   |     date: "2026-05-13"
   |   }
   | }
@@ -382,74 +382,74 @@ FynxApi
   v
 n8n
   |
-  | envia confirmacao
+  | envia confirmação
   v
 WhatsApp:
-  "Transacao registrada: Almoco, R$ 45,00, Alimentacao."
+  "Transação registrada: Almoço, R$ 45,00, Alimentação."
 ```
 
-### 5.4. Logica natural do fluxo OTP
+### 5.4. Lógica natural do fluxo OTP
 
-O fluxo OTP existe para garantir que o usuario realmente controla o numero informado no Fynx Web.
+O fluxo OTP existe para garantir que o usuário realmente controla o número informado no Fynx Web.
 
 Funcionamento:
 
-1. O usuario entra no Fynx Web ja autenticado.
-2. Ele informa um numero de WhatsApp.
-3. O frontend envia esse numero para o FynxApi usando o JWT normal do usuario.
-4. O backend normaliza o numero para formato E.164.
+1. O usuário entra no Fynx Web já autenticado.
+2. Ele informa um número de WhatsApp.
+3. O frontend envia esse número para o FynxApi usando o JWT normal do usuário.
+4. O backend normaliza o número para formato E.164.
 5. O backend calcula um hash do telefone normalizado.
-6. O backend verifica se esse telefone ja esta verificado para outro usuario.
-7. Se o numero estiver livre ou pendente para o mesmo usuario, o backend gera um codigo OTP de 6 digitos.
-8. O backend salva o hash do codigo na tabela de desafios OTP.
-9. O backend envia o codigo para o telefone usando a Evolution API.
-10. O usuario recebe o codigo no WhatsApp.
-11. O usuario digita o codigo no Fynx Web.
-12. O backend compara o codigo informado com o hash salvo.
-13. Se estiver correto e dentro do prazo, o numero passa para `verified`.
-14. A partir desse momento, mensagens vindas daquele numero podem ser resolvidas pelo n8n.
+6. O backend verifica se esse telefone já está verificado para outro usuário.
+7. Se o número estiver livre ou pendente para o mesmo usuário, o backend gera um código OTP de 6 dígitos.
+8. O backend salva o hash do código na tabela de desafios OTP.
+9. O backend envia o código para o telefone usando a Evolution API.
+10. O usuário recebe o código no WhatsApp.
+11. O usuário digita o código no Fynx Web.
+12. O backend compara o código informado com o hash salvo.
+13. Se estiver correto e dentro do prazo, o número passa para `verified`.
+14. A partir desse momento, mensagens vindas daquele número podem ser resolvidas pelo n8n.
 
 Regras importantes:
 
-- o OTP nao deve ser salvo em texto puro;
+- o OTP não deve ser salvo em texto puro;
 - o OTP deve expirar;
-- tentativas invalidas devem incrementar contador;
+- tentativas inválidas devem incrementar contador;
 - muitas tentativas devem bloquear o desafio;
 - solicitar novo OTP deve invalidar desafios antigos pendentes;
-- numero verificado por outro usuario nao pode ser tomado sem processo de revogacao/administracao.
+- número verificado por outro usuário não pode ser tomado sem processo de revogação/administração.
 
 #### 5.4.1. Quando o OTP esta errado
 
-Quando o usuario informa um codigo incorreto, o backend nao deve dizer qual parte esta errada e nao deve revelar se o codigo correto esta perto ou longe. A resposta deve ser generica.
+Quando o usuário informa um código incorreto, o backend não deve dizer qual parte esta errada e não deve revelar se o código correto está perto ou longe. A resposta deve ser genérica.
 
 Fluxo:
 
 ```text
-Usuario informa OTP
+Usuário informa OTP
   |
   v
 FynxApi busca desafio pending mais recente
   |
   v
-FynxApi verifica expiracao
+FynxApi verifica expiração
   |
   v
-FynxApi compara codigo informado com code_hash
+FynxApi compara código informado com code_hash
   |
-  +-- codigo correto --> marca used, marca conta verified
+  +-- código correto --> marca used, marca conta verified
   |
-  +-- codigo errado --> incrementa attempts
+  +-- código errado --> incrementa attempts
                          |
-                         +-- attempts < limite --> retorna 400 codigo invalido
+                         +-- attempts < limite --> retorna 400 código inválido
                          |
                          +-- attempts >= limite --> marca desafio blocked e retorna 429
 ```
 
-Resposta para codigo errado ainda dentro do limite:
+Resposta para código errado ainda dentro do limite:
 
 ```json
 {
-  "error": "Codigo de verificacao invalido.",
+  "error": "Código de verificação inválido.",
   "code": "WHATSAPP_OTP_INVALID",
   "remainingAttempts": 3
 }
@@ -459,21 +459,21 @@ Resposta quando o limite de tentativas foi atingido:
 
 ```json
 {
-  "error": "Limite de tentativas excedido. Solicite um novo codigo.",
+  "error": "Limite de tentativas excedido. Solicite um novo código.",
   "code": "WHATSAPP_OTP_ATTEMPTS_EXCEEDED"
 }
 ```
 
-Regra importante: `remainingAttempts` e util para UX, mas nao deve ser usado se a equipe quiser reduzir ainda mais informacao para atacantes. Em ambiente de maior rigor, retornar apenas mensagem generica.
+Regra importante: `remainingAttempts` é útil para UX, mas não deve ser usado se a equipe quiser reduzir ainda mais informação para atacantes. Em ambiente de maior rigor, retornar apenas mensagem genérica.
 
 #### 5.4.2. Quando o OTP esta expirado
 
-O OTP deve expirar por tempo, mesmo que o usuario ainda nao tenha usado nenhuma tentativa.
+O OTP deve expirar por tempo, mesmo que o usuário ainda não tenha usado nenhuma tentativa.
 
 Fluxo:
 
 ```text
-Usuario informa OTP
+Usuário informa OTP
   |
   v
 FynxApi busca desafio pending
@@ -483,26 +483,26 @@ now > expires_at?
   |
   +-- sim --> marca desafio expired e retorna 410
   |
-  +-- nao --> continua validacao normal
+  +-- não --> continua validação normal
 ```
 
 Resposta:
 
 ```json
 {
-  "error": "Codigo expirado. Solicite um novo codigo de verificacao.",
+  "error": "Código expirado. Solicite um novo código de verificação.",
   "code": "WHATSAPP_OTP_EXPIRED"
 }
 ```
 
-#### 5.4.3. Quando o usuario pede OTP muitas vezes
+#### 5.4.3. Quando o usuário pede OTP muitas vezes
 
-O endpoint de solicitar OTP deve ter cooldown para evitar abuso, custo desnecessario na Evolution API e spam no WhatsApp do usuario.
+O endpoint de solicitar OTP deve ter cooldown para evitar abuso, custo desnecessario na Evolution API e spam no WhatsApp do usuário.
 
 Fluxo:
 
 ```text
-Usuario solicita OTP
+Usuário solicita OTP
   |
   v
 FynxApi normaliza telefone e calcula phone_hash
@@ -510,16 +510,16 @@ FynxApi normaliza telefone e calcula phone_hash
   v
 Existe OTP recente para esse user_id + phone_hash?
   |
-  +-- sim, criado ha menos de 60s --> retorna 429 cooldown
+  +-- sim, criado há menos de 60s --> retorna 429 cooldown
   |
-  +-- nao --> invalida OTPs pendentes antigos, gera novo OTP e envia
+  +-- não --> inválida OTPs pendentes antigos, gera novo OTP e envia
 ```
 
 Resposta durante cooldown:
 
 ```json
 {
-  "error": "Aguarde antes de solicitar um novo codigo.",
+  "error": "Aguarde antes de solicitar um novo código.",
   "code": "WHATSAPP_OTP_COOLDOWN",
   "retryAfterSeconds": 42
 }
@@ -532,49 +532,49 @@ cooldown entre envios:
   60 segundos por user_id + phone_hash
 
 limite por hora:
-  3 codigos por phone_hash
+  3 códigos por phone_hash
 
 limite por dia:
-  10 codigos por user_id
+  10 códigos por user_id
 ```
 
-#### 5.4.4. Quando o numero ja pertence a outro usuario
+#### 5.4.4. Quando o número já pertence a outro usuário
 
-Se o telefone ja esta `verified` para outro `user_id`, o backend deve impedir o cadastro automatico.
+Se o telefone já esta `verified` para outro `user_id`, o backend deve impedir o cadastro automático.
 
 Resposta:
 
 ```json
 {
-  "error": "Este numero ja esta vinculado a outra conta.",
+  "error": "Este número já esta vinculado a outra conta.",
   "code": "WHATSAPP_PHONE_ALREADY_LINKED"
 }
 ```
 
-Para evitar vazamento de informacao, se o produto exigir mais privacidade, a mensagem publica pode ser mais neutra:
+Para evitar vazamento de informação, se o produto exigir mais privacidade, a mensagem pública pode ser mais neutra:
 
 ```json
 {
-  "error": "Nao foi possivel vincular este numero. Entre em contato com o suporte.",
+  "error": "Não foi possível vincular este número. Entre em contato com o suporte.",
   "code": "WHATSAPP_PHONE_LINK_FAILED"
 }
 ```
 
 #### 5.4.5. Reenvio de OTP
 
-Quando o usuario pede reenvio depois do cooldown:
+Quando o usuário pede reenvio depois do cooldown:
 
 1. O backend marca desafios pendentes anteriores como `expired`.
-2. Gera novo codigo.
+2. Gera novo código.
 3. Salva novo `code_hash`.
 4. Envia nova mensagem via Evolution API.
 5. Apenas o OTP mais recente deve ser aceito.
 
-Isso evita que codigos antigos ainda funcionem depois de um reenvio.
+Isso evita que códigos antigos ainda funcionem depois de um reenvio.
 
-### 5.5. Logica natural do fluxo de transacao
+### 5.5. Lógica natural do fluxo de transação
 
-Esse fluxo permite que o usuario diga algo como:
+Esse fluxo permite que o usuário diga algo como:
 
 ```text
 gastei 45 no almoco hoje
@@ -588,50 +588,50 @@ Funcionamento:
 2. A Evolution API entrega a mensagem ao webhook do n8n.
 3. O n8n extrai o telefone remetente.
 4. O n8n chama o endpoint `/resolve` do FynxApi.
-5. O FynxApi valida o token de servico do n8n.
+5. O FynxApi valida o token de serviço do n8n.
 6. O FynxApi normaliza e hasheia o telefone.
 7. O FynxApi busca uma conta WhatsApp `verified`.
-8. Se nao encontrar, o n8n responde orientando o cadastro no Fynx Web.
+8. Se não Encontrar, o n8n responde orientando o cadastro no Fynx Web.
 9. Se encontrar, o FynxApi retorna um `contextRef`.
 10. O n8n envia a mensagem para a LLM com instrucoes e schema JSON.
-11. A LLM extrai intencao, valor, tipo, categoria, descricao e data.
+11. A LLM extrai intenção, valor, tipo, categoria, descrição e data.
 12. O n8n valida se o JSON retornado esta correto.
-13. Se faltar dado, o n8n pergunta ao usuario.
-14. Se estiver completo, o n8n chama o endpoint interno de criacao de transacao.
+13. Se faltar dado, o n8n pergunta ao usuário.
+14. Se estiver completo, o n8n chama o endpoint interno de criação de transação.
 15. O FynxApi valida o `contextRef`.
 16. O FynxApi recupera o `user_id` internamente.
-17. O FynxApi valida o payload da transacao com Zod.
-18. O FynxApi chama o use case de criacao de transacao ja existente.
+17. O FynxApi valida o payload da transação com Zod.
+18. O FynxApi chama o use case de criação de transação já existente.
 19. O FynxApi registra auditoria.
-20. O n8n recebe a transacao criada e envia uma confirmacao no WhatsApp.
+20. O n8n recebe a transação criada e envia uma confirmação no WhatsApp.
 
-Campos minimos para criar transacao:
+Campos mínimos para criar transação:
 
 ```text
 type: income ou expense
-amount: numero positivo
+amount: número positivo
 description: texto curto
-category: categoria existente ou aceita pelo dominio
+category: categoria existente ou aceita pelo domínio
 date: YYYY-MM-DD
 ```
 
-Quando pedir confirmacao:
+Quando pedir confirmação:
 
 - valor alto;
-- categoria inferida com baixa confianca;
-- data ambigua;
-- mensagem com mais de uma transacao;
-- usuario pediu para alterar ou excluir algo;
-- LLM retornou confianca baixa.
+- categoria inferida com baixa confiança;
+- data ambígua;
+- mensagem com mais de uma transação;
+- usuário pediu para alterar ou excluir algo;
+- LLM retornou confiança baixa.
 
-### 5.6. Logica natural do fluxo de consulta de saldo e dashboard
+### 5.6. Lógica natural do fluxo de consulta de saldo e dashboard
 
 Esse fluxo permite perguntas como:
 
 ```text
-quanto gastei esse mes?
+quanto gastei esse mês?
 qual meu saldo mensal?
-como estao minhas despesas?
+como estão minhas despesas?
 qual categoria mais consumiu dinheiro?
 ```
 
@@ -639,84 +639,84 @@ Funcionamento:
 
 1. A mensagem chega pelo WhatsApp.
 2. O n8n resolve o telefone no FynxApi.
-3. A LLM classifica a intencao como consulta financeira.
+3. A LLM classifica a intenção como consulta financeira.
 4. O n8n chama uma action de dashboard ou summary.
 5. O FynxApi valida o `contextRef`.
-6. O FynxApi chama `DashboardService.getDashboardData(userId)` ou servicos de resumo de transacoes.
+6. O FynxApi chama `DashboardService.getDashboardData(userId)` ou serviços de resumo de transações.
 7. O FynxApi retorna dados estruturados para o n8n.
 8. A LLM transforma esses dados em uma resposta curta e clara.
 9. O n8n envia a resposta no WhatsApp.
 
-Regra importante: a LLM deve receber apenas os dados necessarios para responder a pergunta. Se o usuario perguntar "quanto gastei esse mes?", nao ha necessidade de enviar todo o historico detalhado de transacoes.
+Regra importante: a LLM deve receber apenas os dados necessários para responder a pergunta. Se o usuário perguntar "quanto gastei esse mês?", não há necessidade de enviar todo o histórico detalhado de transações.
 
 Exemplo de resposta:
 
 ```text
-Neste mes voce teve R$ 2.300,00 em despesas. A maior categoria foi Alimentacao, com R$ 720,00.
+Neste mês você teve R$ 2.300,00 em despesas. A maior categoria foi Alimentação, com R$ 720,00.
 ```
 
-### 5.7. Logica natural do fluxo de categorias
+### 5.7. Lógica natural do fluxo de categorias
 
 Esse fluxo permite:
 
 ```text
 quais categorias posso usar?
 crie a categoria Freelance como receita
-use Alimentacao nessa transacao
+use Alimentação nessa transação
 ```
 
 MVP recomendado:
 
 - permitir consultar categorias;
-- permitir usar uma categoria existente na criacao de transacao;
-- nao permitir criar categoria automaticamente sem confirmacao.
+- permitir usar uma categoria existente na criação de transação;
+- não permitir criar categoria automaticamente sem confirmação.
 
 Funcionamento para consulta:
 
-1. Usuario pergunta pelas categorias.
+1. Usuário pergunta pelas categorias.
 2. n8n resolve o telefone.
-3. LLM identifica intencao `categories:list`.
+3. LLM identifica intenção `categories:list`.
 4. n8n chama action de categorias.
-5. FynxApi retorna categorias globais e, se aplicavel, categorias customizadas do usuario.
+5. FynxApi retorna categorias globais e, se aplicável, categorias customizadas do usuário.
 6. n8n responde no WhatsApp.
 
 Funcionamento para categoria nova:
 
-1. Usuario diz "crie categoria Freelance".
-2. LLM identifica criacao de categoria.
-3. Como cria dados novos, o n8n pede confirmacao.
-4. Apos confirmacao, n8n chama endpoint especifico.
-5. FynxApi valida se ja existe categoria ativa com mesmo nome e tipo.
-6. FynxApi cria categoria customizada para o usuario.
+1. Usuário diz "crie categoria Freelance".
+2. LLM identifica criação de categoria.
+3. Como cria dados novos, o n8n pede confirmação.
+4. Após confirmação, n8n chama endpoint específico.
+5. FynxApi valida se já existe categoria ativa com mesmo nome e tipo.
+6. FynxApi cria categoria customizada para o usuário.
 7. n8n confirma no WhatsApp.
 
-No MVP, se ainda nao quiser liberar criacao via WhatsApp, o bot deve responder:
+No MVP, se ainda não quiser liberar criação via WhatsApp, o bot deve responder:
 
 ```text
-Ainda nao posso criar categorias pelo WhatsApp. Voce pode criar essa categoria no Fynx Web.
+Ainda não posso criar categorias pelo WhatsApp. Você pode criar essa categoria no Fynx Web.
 ```
 
-### 5.8. Logica natural do fluxo de metas
+### 5.8. Lógica natural do fluxo de metas
 
 Esse fluxo permite:
 
 ```text
-como estao minhas metas?
+como estão minhas metas?
 quanto falta para minha reserva?
-crie uma meta de guardar 5000 reais ate dezembro
+crie uma meta de guardar 5000 reais até dezembro
 ```
 
 MVP recomendado:
 
 - permitir consultar metas;
-- nao permitir criar, editar ou excluir metas sem confirmacao explicita;
+- não permitir criar, editar ou excluir metas sem confirmação explícita;
 - iniciar com leitura antes de liberar escrita.
 
 Funcionamento para consulta:
 
-1. Usuario pergunta sobre metas.
+1. Usuário pergunta sobre metas.
 2. n8n resolve o telefone.
-3. LLM identifica intencao `goals:list` ou `goals:summary`.
+3. LLM identifica intenção `goals:list` ou `goals:summary`.
 4. n8n chama action de metas.
 5. FynxApi chama `GoalsService.getGoalsData(userId)`.
 6. FynxApi retorna metas e progresso.
@@ -725,21 +725,21 @@ Funcionamento para consulta:
 
 Funcionamento para criar meta futuramente:
 
-1. Usuario pede criacao de meta.
-2. LLM extrai titulo, categoria, valor alvo, periodo, data inicial e data final.
+1. Usuário pede criação de meta.
+2. LLM extrai título, categoria, valor alvo, período, data inicial e data final.
 3. Se faltar qualquer campo essencial, o n8n pergunta.
-4. Se estiver completo, o n8n pede confirmacao.
-5. Apos confirmacao, n8n chama endpoint interno de criacao de meta.
-6. FynxApi valida permissao `goals:create`.
+4. Se estiver completo, o n8n pede confirmação.
+5. Após confirmação, n8n chama endpoint interno de criação de meta.
+6. FynxApi valida permissão `goals:create`.
 7. FynxApi cria a meta usando o service de goals.
 8. FynxApi registra auditoria.
 9. n8n confirma no WhatsApp.
 
-No MVP, `goals:create` deve ficar bloqueado ate existir boa experiencia de confirmacao.
+No MVP, `goals:create` deve ficar bloqueado até existir boa experiência de confirmação.
 
-## 6. Autenticacao E Autorizacao
+## 6. Autenticação E Autorização
 
-### 6.1. Usuario logado no Fynx Web
+### 6.1. Usuário logado no Fynx Web
 
 Usa o JWT atual do sistema:
 
@@ -749,15 +749,15 @@ Authorization: Bearer <fynx_user_jwt>
 
 Esse token permite:
 
-- cadastrar numero de WhatsApp;
+- cadastrar número de WhatsApp;
 - solicitar OTP;
 - confirmar OTP;
-- listar numeros vinculados;
-- revogar numero.
+- listar números vinculados;
+- revogar número.
 
 ### 6.2. n8n como sistema autorizado
 
-O n8n usa um token de servico:
+O n8n usa um token de serviço:
 
 ```http
 Authorization: Bearer <N8N_SERVICE_TOKEN>
@@ -770,11 +770,11 @@ FynxApi .env
 n8n credentials
 ```
 
-O token de servico nao representa um usuario final. Ele apenas autentica a integracao.
+O token de serviço não representa um usuário final. Ele apenas autentica a integração.
 
-### 6.3. Resolucao do usuario
+### 6.3. Resolucao do usuário
 
-O usuario final e resolvido pelo numero verificado:
+O usuário final é resolvido pelo número verificado:
 
 ```text
 phone recebido do WhatsApp
@@ -785,18 +785,18 @@ phone recebido do WhatsApp
   -> contextRef opaco
 ```
 
-O `user_id` nao deve ser enviado para a LLM.
+O `user_id` não deve ser enviado para a LLM.
 
 ### 6.4. contextRef
 
-O `contextRef` e um identificador opaco usado entre n8n e FynxApi.
+O `contextRef` é um identificador opaco usado entre n8n e FynxApi.
 
 Ele pode ser:
 
-- um JWT interno assinado com segredo especifico;
-- ou um identificador de sessao persistido em tabela temporaria.
+- um JWT interno assinado com segredo específico;
+- ou um identificador de sessão persistido em tabela temporária.
 
-Recomendacao inicial: JWT interno curto, com expiracao de 15 minutos.
+Recomendação inicial: JWT interno curto, com expiração de 15 minutos.
 
 Payload interno sugerido:
 
@@ -816,7 +816,7 @@ Payload interno sugerido:
 }
 ```
 
-O n8n pode armazenar esse `contextRef` durante a execucao do workflow. A LLM nao precisa receber esse valor.
+O n8n pode armazenar esse `contextRef` durante a execução do workflow. A LLM não precisa receber esse valor.
 
 ## 7. Variaveis De Ambiente
 
@@ -864,31 +864,31 @@ WHATSAPP_MAX_MESSAGES_PER_PHONE_PER_MINUTE=10
 
 ## 8. Banco De Dados
 
-### 8.0. Decisao sobre quantidade de tabelas
+### 8.0. Decisão sobre quantidade de tabelas
 
-Para o MVP, nao e necessario criar uma tabela para cada detalhe do fluxo. A separacao deve existir quando ela reduz risco ou simplifica a regra de negocio.
+Para o MVP, não é necessário criar uma tabela para cada detalhe do fluxo. A separação deve existir quando ela reduz risco ou simplifica a regra de negócio.
 
 Classificacao recomendada:
 
 ```text
-Obrigatoria:
+Obrigatória:
   user_whatsapp_accounts
-    Guarda o vinculo entre usuario e numero autorizado.
+    Guarda o vínculo entre usuário e número autorizado.
 
-Obrigatoria:
+Obrigatória:
   whatsapp_otp_challenges
-    Guarda o desafio OTP, expiracao e tentativas. Separar essa tabela evita poluir a tabela de contas com historico temporario.
+    Guarda o desafio OTP, expiração e tentativas. Separar essa tabela evita poluir a tabela de contas com histórico temporario.
 
 Recomendada:
   whatsapp_audit_logs
-    Guarda auditoria das acoes feitas pelo bot. Importante para suporte, seguranca e investigacao de erros.
+    Guarda auditoria das ações feitas pelo bot. Importante para suporte, Segurança e investigação de erros.
 
 Opcional no MVP:
   whatsapp_message_events
-    Guarda idempotencia por providerMessageId. Pode ser incorporada em whatsapp_audit_logs no inicio, desde que exista campo unico para providerMessageId.
+    Guarda idempotência por providerMessageId. Pode ser incorporada em whatsapp_audit_logs no início, desde que exista campo Único para providerMessageId.
 ```
 
-Versao enxuta para primeira entrega:
+Versão enxuta para primeira entrega:
 
 ```text
 1. user_whatsapp_accounts
@@ -896,7 +896,7 @@ Versao enxuta para primeira entrega:
 3. whatsapp_audit_logs com coluna provider_message_id UNIQUE opcional
 ```
 
-Versao mais robusta para producao:
+Versão mais robusta para produção:
 
 ```text
 1. user_whatsapp_accounts
@@ -905,11 +905,11 @@ Versao mais robusta para producao:
 4. whatsapp_message_events
 ```
 
-Recomendacao pratica: implementar 3 tabelas no MVP e deixar `whatsapp_message_events` como evolucao se a idempotencia ficar mais complexa.
+Recomendação prática: implementar 3 tabelas no MVP e deixar `whatsapp_message_events` como evolução se a idempotência ficar mais complexa.
 
 ### 8.1. Tabela user_whatsapp_accounts
 
-Responsavel por vincular usuarios do Fynx a numeros de WhatsApp verificados.
+Responsável por vincular usuários do Fynx a números de WhatsApp verificados.
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_whatsapp_accounts (
@@ -933,7 +933,7 @@ id
   Identificador interno.
 
 user_id
-  Usuario dono do numero.
+  Usuário dono do número.
 
 phone_e164
   Telefone normalizado. Exemplo: +5511999999999.
@@ -945,15 +945,15 @@ status
   pending, verified ou revoked.
 
 verified_at
-  Data de confirmacao do OTP.
+  Data de confirmação do OTP.
 
 revoked_at
-  Data de revogacao.
+  Data de revogação.
 ```
 
 ### 8.2. Tabela whatsapp_otp_challenges
 
-Responsavel pelos desafios de verificacao.
+Responsável pelos desafios de verificação.
 
 ```sql
 CREATE TABLE IF NOT EXISTS whatsapp_otp_challenges (
@@ -975,12 +975,12 @@ Regras:
 
 - salvar apenas `code_hash`, nunca o OTP em texto puro;
 - expirar automaticamente por `expires_at`;
-- bloquear apos `WHATSAPP_OTP_MAX_ATTEMPTS`;
-- invalidar desafios antigos quando novo OTP for solicitado para o mesmo usuario e telefone.
+- bloquear após `WHATSAPP_OTP_MAX_ATTEMPTS`;
+- invalidar desafios antigos quando novo OTP for solicitado para o mesmo usuário e telefone.
 
 ### 8.3. Tabela whatsapp_message_events opcional
 
-Responsavel por idempotencia. Evita processar a mesma mensagem duas vezes. No MVP, essa responsabilidade pode ficar em `whatsapp_audit_logs.provider_message_id`. Crie esta tabela separada se os retries, reprocessamentos e status de mensagens ficarem complexos.
+Responsável por idempotência. Evita processar a mesma mensagem duas vezes. No MVP, essa responsabilidade pode ficar em `whatsapp_audit_logs.provider_message_id`. Crie esta tabela separada se os retries, reprocessamentos e status de mensagens ficarem complexos.
 
 ```sql
 CREATE TABLE IF NOT EXISTS whatsapp_message_events (
@@ -994,7 +994,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_message_events (
 
 ### 8.4. Tabela whatsapp_audit_logs
 
-Responsavel por rastrear tudo que aconteceu no bot.
+Responsável por rastrear tudo que aconteceu no bot.
 
 ```sql
 CREATE TABLE IF NOT EXISTS whatsapp_audit_logs (
@@ -1014,9 +1014,9 @@ CREATE TABLE IF NOT EXISTS whatsapp_audit_logs (
 );
 ```
 
-Observacao: `request_payload` e `response_payload` devem ser sanitizados. Nao registrar token, OTP, telefone puro, senha ou dados sensiveis desnecessarios.
+Observação: `request_payload` e `response_payload` devem ser sanitizados. Não registrar token, OTP, telefone puro, senha ou dados sensíveis desnecessarios.
 
-No MVP, `provider_message_id` pode ser usado para deduplicacao simples. Em SQLite, se desejar garantir unicidade apenas quando o valor existir, criar indice unico parcial:
+No MVP, `provider_message_id` pode ser usado para deduplicação simples. Em SQLite, se desejar garantir unicidade apenas quando o valor existir, criar índice Único parcial:
 
 ```sql
 CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_audit_provider_message
@@ -1024,7 +1024,7 @@ ON whatsapp_audit_logs(provider_message_id)
 WHERE provider_message_id IS NOT NULL;
 ```
 
-### 8.5. Alteracao no schema.ts
+### 8.5. Alteração no schema.ts
 
 Adicionar as tabelas ao objeto `SCHEMA` em:
 
@@ -1038,13 +1038,13 @@ Exemplo de chaves:
 user_whatsapp_accounts: `...`,
 whatsapp_otp_challenges: `...`,
 whatsapp_audit_logs: `...`
-// opcional em producao:
+// opcional em produção:
 whatsapp_message_events: `...`
 ```
 
 ## 9. Rotas HTTP
 
-### 9.1. Rotas do usuario logado
+### 9.1. Rotas do usuário logado
 
 Prefixo:
 
@@ -1056,7 +1056,7 @@ Devem usar `authenticateToken`.
 
 #### POST /api/v1/whatsapp/accounts/request-verification
 
-Solicita envio de OTP para o numero informado.
+Solicita envio de OTP para o número informado.
 
 Request:
 
@@ -1071,7 +1071,7 @@ Response 200:
 ```json
 {
   "status": "pending",
-  "message": "Codigo de verificacao enviado pelo WhatsApp.",
+  "message": "Código de verificação enviado pelo WhatsApp.",
   "expiresInMinutes": 10
 }
 ```
@@ -1079,10 +1079,10 @@ Response 200:
 Erros:
 
 ```text
-400 telefone invalido
+400 telefone inválido
 401 JWT ausente
-403 JWT invalido
-409 numero ja verificado por outro usuario
+403 JWT inválido
+409 número já verificado por outro usuário
 429 muitas tentativas de OTP
 500 erro ao enviar mensagem
 ```
@@ -1112,17 +1112,17 @@ Response 200:
 Erros:
 
 ```text
-400 codigo invalido
+400 código inválido
 401 JWT ausente
-403 JWT invalido
-404 desafio nao encontrado
-410 codigo expirado
+403 JWT inválido
+404 desafio não Encontrado
+410 código expirado
 429 limite de tentativas excedido
 ```
 
 #### GET /api/v1/whatsapp/accounts
 
-Lista numeros vinculados ao usuario.
+Lista números vinculados ao usuário.
 
 Response 200:
 
@@ -1139,11 +1139,11 @@ Response 200:
 
 #### DELETE /api/v1/whatsapp/accounts/:id
 
-Revoga um numero.
+Revoga um número.
 
 Response 204.
 
-### 9.2. Rotas internas da integracao n8n
+### 9.2. Rotas internas da integração n8n
 
 Prefixo:
 
@@ -1155,7 +1155,7 @@ Devem usar `authenticateWhatsappService`.
 
 #### POST /api/v1/integrations/whatsapp/resolve
 
-Resolve o numero recebido pelo WhatsApp em um contexto autorizado.
+Resolve o número recebido pelo WhatsApp em um contexto autorizado.
 
 Request:
 
@@ -1194,7 +1194,7 @@ Response 403:
 
 #### POST /api/v1/integrations/whatsapp/actions/dashboard
 
-Consulta metricas do dashboard para o usuario resolvido.
+Consulta métricas do dashboard para o usuário resolvido.
 
 Request:
 
@@ -1217,7 +1217,7 @@ Response 200:
 
 #### POST /api/v1/integrations/whatsapp/actions/transactions/create
 
-Cria uma transacao.
+Cria uma transação.
 
 Request:
 
@@ -1227,8 +1227,8 @@ Request:
   "transaction": {
     "type": "expense",
     "amount": 45,
-    "description": "Almoco",
-    "category": "Alimentacao",
+    "description": "Almoço",
+    "category": "Alimentação",
     "date": "2026-05-13"
   },
   "source": {
@@ -1245,15 +1245,15 @@ Response 201:
   "id": "123",
   "type": "expense",
   "amount": 45,
-  "description": "Almoco",
-  "category": "Alimentacao",
+  "description": "Almoço",
+  "category": "Alimentação",
   "date": "2026-05-13"
 }
 ```
 
 #### POST /api/v1/integrations/whatsapp/actions/transactions/search
 
-Busca transacoes do usuario resolvido.
+Busca transações do usuário resolvido.
 
 Request:
 
@@ -1264,7 +1264,7 @@ Request:
     "type": "expense",
     "startDate": "2026-05-01",
     "endDate": "2026-05-13",
-    "category": "Alimentacao",
+    "category": "Alimentação",
     "limit": 10
   }
 }
@@ -1284,7 +1284,7 @@ Request:
 
 #### POST /api/v1/integrations/whatsapp/actions/categories
 
-Consulta categorias disponiveis.
+Consulta categorias disponíveis.
 
 Request:
 
@@ -1294,9 +1294,9 @@ Request:
 }
 ```
 
-## 10. Permissoes Da Integracao
+## 10. Permissões Da Integração
 
-### 10.1. Permissoes iniciais
+### 10.1. Permissões iniciais
 
 ```text
 dashboard:read
@@ -1306,7 +1306,7 @@ goals:read
 categories:read
 ```
 
-### 10.2. Permissoes futuras com confirmacao
+### 10.2. Permissões futuras com confirmação
 
 ```text
 transactions:update
@@ -1316,7 +1316,7 @@ goals:update
 categories:create
 ```
 
-### 10.3. Permissoes bloqueadas no MVP
+### 10.3. Permissões bloqueadas no MVP
 
 ```text
 ranking:update
@@ -1332,15 +1332,15 @@ users:*
 
 A LLM interpreta. O FynxApi executa.
 
-A LLM nao recebe:
+A LLM não recebe:
 
 - `user_id`;
 - telefone real;
-- JWT do usuario;
-- token de servico;
+- JWT do usuário;
+- token de serviço;
 - SQL;
 - acesso direto ao banco;
-- payloads completos com dados sensiveis desnecessarios.
+- payloads completos com dados sensíveis desnecessarios.
 
 ### 11.2. Entrada recomendada para a LLM
 
@@ -1362,7 +1362,7 @@ A LLM nao recebe:
 }
 ```
 
-### 11.3. Saida obrigatoria da LLM
+### 11.3. Saída obrigatória da LLM
 
 ```json
 {
@@ -1373,25 +1373,25 @@ A LLM nao recebe:
   "data": {
     "type": "expense",
     "amount": 45,
-    "description": "Almoco",
-    "category": "Alimentacao",
+    "description": "Almoço",
+    "category": "Alimentação",
     "date": "2026-05-13"
   },
-  "replyDraft": "Vou registrar uma despesa de R$ 45,00 em Alimentacao com descricao Almoco."
+  "replyDraft": "Vou registrar uma despesa de R$ 45,00 em Alimentação com descrição Almoço."
 }
 ```
 
-### 11.4. Regras de confirmacao
+### 11.4. Regras de confirmação
 
-Confirmacao obrigatoria quando:
+Confirmacao obrigatória quando:
 
-- a intencao tiver baixa confianca;
-- faltar campo obrigatorio;
+- a intenção tiver baixa confiança;
+- faltar campo obrigatório;
 - houver ambiguidade de data;
 - valor for acima de limite configurado;
-- usuario pedir edicao ou exclusao;
-- usuario pedir acao em lote;
-- usuario pedir algo fora das permissoes atuais.
+- usuário pedir edição ou exclusão;
+- usuário pedir ação em lote;
+- usuário pedir algo fora das permissões atuais.
 
 Exemplo:
 
@@ -1401,11 +1401,11 @@ Exemplo:
   "confidence": 0.62,
   "requiresConfirmation": true,
   "missingFields": ["category"],
-  "question": "Qual categoria devo usar para essa transacao?"
+  "question": "Qual categoria devo usar para essa transação?"
 }
 ```
 
-## 12. Tipos De Midia
+## 12. Tipos De Mídia
 
 ### 12.1. Texto
 
@@ -1415,10 +1415,10 @@ Fluxo simples:
 WhatsApp texto -> n8n -> LLM -> FynxApi action
 ```
 
-### 12.2. Audio
+### 12.2. Áudio
 
 ```text
-WhatsApp audio
+WhatsApp áudio
   -> Evolution API
   -> n8n baixa arquivo
   -> transcricao
@@ -1439,23 +1439,23 @@ Casos esperados:
 WhatsApp imagem
   -> n8n baixa imagem
   -> LLM multimodal extrai dados
-  -> se confianca baixa, pedir confirmacao
-  -> FynxApi cria transacao
+  -> se confiança baixa, pedir confirmação
+  -> FynxApi cria transação
 ```
 
-### 12.4. Video
+### 12.4. Vídeo
 
 MVP:
 
-- extrair audio;
+- extrair áudio;
 - transcrever;
 - opcionalmente extrair frames;
 - enviar texto resumido para LLM.
 
 ```text
-WhatsApp video
-  -> n8n baixa video
-  -> extrai audio/frame
+WhatsApp vídeo
+  -> n8n baixa vídeo
+  -> extrai áudio/frame
   -> LLM interpreta
   -> FynxApi action
 ```
@@ -1464,31 +1464,31 @@ WhatsApp video
 
 ### 13.1. Envio de OTP
 
-O `EvolutionApiClient` deve chamar a Evolution API para enviar o codigo.
+O `EvolutionApiClient` deve chamar a Evolution API para enviar o código.
 
 Payload conceitual:
 
 ```json
 {
   "number": "5511999999999",
-  "text": "Seu codigo de verificacao Fynx e: 482913. Ele expira em 10 minutos."
+  "text": "Seu código de verificação Fynx e: 482913. Ele expira em 10 minutos."
 }
 ```
 
-O formato exato depende da versao/configuracao da Evolution API usada no ambiente.
+O formato exato depende da versão/configuração da Evolution API usada no ambiente.
 
 ### 13.2. Webhook de entrada
 
-Recomendacao: configurar a Evolution API para chamar um webhook do n8n, nao diretamente o FynxApi.
+Recomendação: configurar a Evolution API para chamar um webhook do n8n, não diretamente o FynxApi.
 
 Motivo:
 
 - n8n orquestra midias;
 - n8n chama LLM;
 - n8n controla fluxo conversacional;
-- FynxApi fica responsavel por seguranca e regras de negocio.
+- FynxApi fica responsável por Segurança e regras de negócio.
 
-## 14. Implementacao No FynxApi
+## 14. Implementação No FynxApi
 
 ### 14.1. Passo 1: Criar tabelas no schema
 
@@ -1506,9 +1506,9 @@ whatsapp_otp_challenges
 whatsapp_audit_logs
 ```
 
-`whatsapp_message_events` deve ser adicionada somente se a equipe decidir separar idempotencia da auditoria.
+`whatsapp_message_events` deve ser adicionada somente se a equipe decidir separar idempotência da auditoria.
 
-### 14.2. Passo 2: Criar middleware do token de servico
+### 14.2. Passo 2: Criar middleware do token de serviço
 
 Arquivo:
 
@@ -1522,8 +1522,8 @@ Responsabilidade:
 ler Authorization
 validar Bearer token
 comparar com N8N_SERVICE_TOKEN
-retornar 401/403 se invalido
-chamar next() se valido
+retornar 401/403 se inválido
+chamar next() se válido
 ```
 
 ### 14.3. Passo 3: Criar OtpService
@@ -1531,18 +1531,18 @@ chamar next() se valido
 Responsabilidade:
 
 ```text
-gerar codigo randomico de 6 digitos
+gerar código randômico de 6 dígitos
 criar hash seguro
-validar codigo
-calcular expiracao
+validar código
+calcular expiração
 controlar tentativas
 ```
 
-Recomendacao:
+Recomendação:
 
 - usar `crypto.randomInt(100000, 999999)`;
-- usar `bcrypt` para hash do OTP, ja presente no projeto;
-- TTL padrao: 10 minutos;
+- usar `bcrypt` para hash do OTP, já presente no projeto;
+- TTL padrão: 10 minutos;
 - tentativas maximas: 5.
 
 ### 14.4. Passo 4: Criar EvolutionApiClient
@@ -1550,23 +1550,23 @@ Recomendacao:
 Responsabilidade:
 
 ```text
-enviar texto para numero
+enviar texto para número
 tratar erro da Evolution API
 timeout curto
 log seguro
 ```
 
-Em ambiente local, se a Evolution API nao estiver disponivel, permitir modo mock:
+Em ambiente local, se a Evolution API não Estiver disponível, permitir modo mock:
 
 ```env
 EVOLUTION_API_MOCK=true
 ```
 
-Nesse modo, o codigo nao e enviado de verdade, mas o backend registra log de desenvolvimento.
+Nesse modo, o código não é enviado de verdade, mas o backend registra log de desenvolvimento.
 
 ### 14.5. Passo 5: Criar WhatsappService
 
-Metodos recomendados:
+Métodos recomendados:
 
 ```ts
 requestVerification(userId: number, phone: string)
@@ -1595,9 +1595,9 @@ router.use('/integrations/whatsapp', authenticateWhatsappService, whatsappIntegr
 
 Se preferir evitar dois arquivos de rotas, o mesmo `whatsapp.routes.ts` pode exportar dois routers.
 
-### 14.7. Passo 7: Reaproveitar servicos existentes
+### 14.7. Passo 7: Reaproveitar serviços existentes
 
-A camada WhatsApp nao deve duplicar regra financeira.
+A camada WhatsApp não deve duplicar regra financeira.
 
 Para dashboard:
 
@@ -1605,7 +1605,7 @@ Para dashboard:
 usar DashboardService.getDashboardData(userId)
 ```
 
-Para transacoes:
+Para transações:
 
 ```text
 usar createTransactionUseCase.execute(data, userId)
@@ -1624,7 +1624,7 @@ Para categorias:
 
 ```text
 usar categoryRepository.findAll()
-usar CustomCategoriesService para categorias do usuario, se aplicavel
+usar CustomCategoriesService para categorias do usuário, se aplicável
 ```
 
 ## 15. Workflow n8n
@@ -1640,15 +1640,15 @@ usar CustomCategoriesService para categorias do usuario, se aplicavel
         v
 [HTTP Request: FynxApi /resolve]
         |
-        +-- unauthorized --> [Send WhatsApp: numero nao autorizado]
+        +-- unauthorized --> [Send WhatsApp: número não autorizado]
         |
         v
 [Detect Message Type]
         |
         +-- text  --> [LLM]
-        +-- audio --> [Download] -> [Transcribe] -> [LLM]
+        +-- áudio --> [Download] -> [Transcribe] -> [LLM]
         +-- image --> [Download] -> [LLM vision]
-        +-- video --> [Download] -> [Extract audio/frame] -> [LLM]
+        +-- vídeo --> [Download] -> [Extract áudio/frame] -> [LLM]
         |
         v
 [Validate LLM JSON]
@@ -1666,10 +1666,10 @@ usar CustomCategoriesService para categorias do usuario, se aplicavel
 [Evolution API send message]
 ```
 
-### 15.2. Workflow de confirmacao
+### 15.2. Workflow de confirmação
 
 ```text
-Usuario pede acao sensivel
+Usuário pede ação sensível
   |
   v
 LLM identifica requiresConfirmation = true
@@ -1681,7 +1681,7 @@ n8n salva pending action em storage ou banco auxiliar
 WhatsApp: "Confirma registrar R$ 450,00 em Lazer?"
   |
   v
-Usuario responde "sim"
+Usuário responde "sim"
   |
   v
 n8n recupera pending action
@@ -1693,24 +1693,24 @@ FynxApi executa action
 WhatsApp confirma resultado
 ```
 
-Para producao, pending actions devem ter expiracao curta.
+Para produção, pending actions devem ter expiração curta.
 
 ## 16. Tratamento De Erros
 
-### 16.1. Numero nao autorizado
+### 16.1. Número não autorizado
 
 Resposta:
 
 ```text
-Este numero ainda nao esta autorizado no Fynx. Acesse sua conta no Fynx Web e cadastre seu WhatsApp.
+Este número ainda não Está autorizado no Fynx. Acesse sua conta no Fynx Web e cadastre seu WhatsApp.
 ```
 
-### 16.2. OTP invalido
+### 16.2. OTP inválido
 
 Resposta no Fynx Web:
 
 ```text
-Codigo invalido. Verifique o codigo recebido no WhatsApp.
+Código inválido. Verifique o código recebido no WhatsApp.
 ```
 
 ### 16.3. OTP expirado
@@ -1718,15 +1718,15 @@ Codigo invalido. Verifique o codigo recebido no WhatsApp.
 Resposta:
 
 ```text
-Codigo expirado. Solicite um novo codigo de verificacao.
+Código expirado. Solicite um novo código de verificação.
 ```
 
-### 16.4. LLM com baixa confianca
+### 16.4. LLM com baixa confiança
 
 Resposta:
 
 ```text
-Nao consegui identificar todos os dados. Voce pode confirmar o valor, categoria e data?
+Não consegui identificar todos os dados. Você pode confirmar o valor, categoria e data?
 ```
 
 ### 16.5. Erro de API financeira
@@ -1734,54 +1734,54 @@ Nao consegui identificar todos os dados. Voce pode confirmar o valor, categoria 
 Resposta:
 
 ```text
-Nao consegui registrar agora. Tente novamente em alguns instantes.
+Não consegui registrar agora. Tente novamente em alguns instantes.
 ```
 
 Internamente:
 
 - registrar auditoria;
-- registrar erro tecnico;
-- nao expor stack trace ao usuario.
+- registrar erro técnico;
+- não Expor stack trace ao usuário.
 
-## 17. Seguranca
+## 17. Segurança
 
-### 17.1. Regras obrigatorias
+### 17.1. Regras obrigatórias
 
 - n8n nunca acessa banco diretamente.
 - LLM nunca recebe `user_id`.
 - LLM nunca recebe telefone real.
 - LLM nunca recebe token.
 - OTP nunca e salvo em texto puro.
-- Token de servico fica somente no FynxApi e no n8n.
+- Token de serviço fica somente no FynxApi e no n8n.
 - Todo endpoint interno valida `N8N_SERVICE_TOKEN`.
 - Toda action valida `contextRef`.
-- Toda action valida permissoes.
+- Toda action valida permissões.
 - Toda action registra auditoria.
-- Acoes destrutivas exigem confirmacao.
+- Ações destrutivas exigem confirmação.
 - Mensagens repetidas devem ser deduplicadas por `providerMessageId`.
 
 ### 17.2. Rate limits
 
-Aplicar limites especificos:
+Aplicar limites específicos:
 
 ```text
 request-verification:
-  maximo 3 OTP por telefone por hora
+  máximo 3 OTP por telefone por hora
   cooldown de 60 segundos entre envios
 
 confirm-verification:
-  maximo 5 tentativas por desafio
+  máximo 5 tentativas por desafio
 
 resolve:
-  maximo por phone_hash por minuto
+  máximo por phone_hash por minuto
 
 actions:
-  maximo por contextRef por minuto
+  máximo por contextRef por minuto
 ```
 
 ### 17.2.1. Matriz recomendada de rate limit
 
-Os limites abaixo sao valores iniciais para desenvolvimento e homologacao. Em producao, devem ser ajustados com base no uso real e nos custos da Evolution API e da LLM.
+Os limites abaixo são valores iniciais para desenvolvimento e homologação. Em produção, devem ser ajustados com base no uso real e nos custos da Evolution API e da LLM.
 
 ```text
 Endpoint:
@@ -1791,9 +1791,9 @@ Chave de rate limit:
   user_id + phone_hash
 
 Limite recomendado:
-  1 requisicao por 60 segundos
-  3 requisicoes por hora por phone_hash
-  10 requisicoes por dia por user_id
+  1 requisição por 60 segundos
+  3 requisições por hora por phone_hash
+  10 requisições por dia por user_id
 
 Motivo:
   Evitar spam de OTP, custo externo e tentativa de abuso.
@@ -1810,7 +1810,7 @@ Limite recomendado:
   5 tentativas por desafio
 
 Motivo:
-  Evitar brute force do codigo OTP.
+  Evitar brute force do código OTP.
 ```
 
 ```text
@@ -1821,7 +1821,7 @@ Chave de rate limit:
   phone_hash + IP/origem do n8n
 
 Limite recomendado:
-  20 requisicoes por minuto por phone_hash
+  20 requisições por minuto por phone_hash
 
 Motivo:
   Evitar loop de workflow ou ataque usando o endpoint de resolucao.
@@ -1835,11 +1835,11 @@ Chave de rate limit:
   contextRef ou user_id interno
 
 Limite recomendado:
-  30 actions por minuto por usuario
-  5 actions de escrita por minuto por usuario
+  30 actions por minuto por usuário
+  5 actions de escrita por minuto por usuário
 
 Motivo:
-  Evitar criacao acidental em massa e loops da LLM/n8n.
+  Evitar criação acidental em massa e loops da LLM/n8n.
 ```
 
 ```text
@@ -1853,64 +1853,64 @@ Limite recomendado:
   providerMessageId deve ser idempotente
 
 Motivo:
-  Retries do webhook nao podem criar transacoes duplicadas.
+  Retries do webhook não podem criar transações duplicadas.
 ```
 
 ### 17.2.2. Como implementar rate limit no FynxApi
 
-O projeto ja usa `express-rate-limit` globalmente. Para o dominio WhatsApp, criar limitadores especificos em `whatsapp.routes.ts` ou em um middleware dedicado.
+O projeto já usa `express-rate-limit` globalmente. Para o domínio WhatsApp, criar limitadores específicos em `whatsapp.routes.ts` ou em um middleware dedicado.
 
-Padrao sugerido:
+Padrão sugerido:
 
 ```text
 rate limit global da API
   protege tudo de abuso geral
 
-rate limit especifico de OTP
-  protege envio de codigo
+rate limit específico de OTP
+  protege envio de código
 
-rate limit especifico de confirmacao OTP
+rate limit específico de confirmação OTP
   protege brute force
 
-rate limit especifico de actions
+rate limit específico de actions
   protege loops e escritas em massa
 ```
 
-Para limites baseados em `user_id`, `phone_hash` ou `contextRef`, o rate limit precisa de uma key customizada. Em desenvolvimento com SQLite e processo unico, memoria local pode funcionar. Em producao com multiplas instancias, usar Redis ou outro storage compartilhado.
+Para limites baseados em `user_id`, `phone_hash` ou `contextRef`, o rate limit precisa de uma key customizada. Em desenvolvimento com SQLite e processo Único, memória local pode funcionar. Em produção com múltiplas instancias, usar Redis ou outro storage compartilhado.
 
-### 17.2.3. Respostas padrao para rate limit
+### 17.2.3. Respostas padrão para rate limit
 
-Resposta generica:
+Resposta genérica:
 
 ```json
 {
-  "error": "Muitas requisicoes. Tente novamente em alguns instantes.",
+  "error": "Muitas requisições. Tente novamente em alguns instantes.",
   "code": "RATE_LIMIT_EXCEEDED",
   "retryAfterSeconds": 60
 }
 ```
 
-Resposta especifica para OTP:
+Resposta específica para OTP:
 
 ```json
 {
-  "error": "Aguarde antes de solicitar um novo codigo.",
+  "error": "Aguarde antes de solicitar um novo código.",
   "code": "WHATSAPP_OTP_RATE_LIMITED",
   "retryAfterSeconds": 60
 }
 ```
 
-O n8n deve respeitar `retryAfterSeconds` e nao repetir automaticamente antes desse prazo.
+O n8n deve respeitar `retryAfterSeconds` e não repetir automaticamente antes desse prazo.
 
 ### 17.3. Logs
 
-Nao logar:
+Não logar:
 
 - OTP;
 - senha;
 - token;
-- telefone completo em producao;
-- payload bruto de midia;
+- telefone completo em produção;
+- payload bruto de mídia;
 - dados financeiros excessivos.
 
 Logar:
@@ -1925,16 +1925,16 @@ Logar:
 
 ### 17.4. LGPD e privacidade
 
-Principios:
+Princípios:
 
-- coletar somente o telefone necessario;
-- permitir revogacao;
+- coletar somente o telefone necessário;
+- permitir revogação;
 - informar finalidade do uso;
 - registrar consentimento implicito no cadastro;
 - mascarar telefone no frontend;
-- evitar persistir conteudo integral de conversas sem necessidade.
+- evitar persistir conteúdo integral de conversas sem necessidade.
 
-## 18. Otimizacao E Resiliencia
+## 18. Otimização E Resiliencia
 
 ### 18.1. Timeouts
 
@@ -1946,7 +1946,7 @@ LLM: depende do provedor, mas com fallback de erro amigavel
 FynxApi internal actions: 10s
 ```
 
-### 18.2. Idempotencia
+### 18.2. Idempotência
 
 Usar `providerMessageId` para evitar duplicidade.
 
@@ -1955,8 +1955,8 @@ Fluxo:
 ```text
 recebe providerMessageId
   -> verifica provider_message_id em whatsapp_audit_logs no MVP
-  -> ou verifica whatsapp_message_events em uma versao mais robusta
-  -> se ja processado, ignora ou retorna ultimo resultado
+  -> ou verifica whatsapp_message_events em uma versão mais robusta
+  -> se já processado, ignora ou retorna Último resultado
   -> se novo, processa
   -> grava status
 ```
@@ -1965,13 +1965,13 @@ recebe providerMessageId
 
 No MVP, o n8n pode processar direto.
 
-Em producao com volume maior, considerar:
+Em produção com volume maior, considerar:
 
 ```text
 Webhook -> fila -> worker -> LLM -> FynxApi -> resposta
 ```
 
-Ferramentas possiveis:
+Ferramentas possíveis:
 
 - Redis;
 - BullMQ;
@@ -1998,7 +1998,7 @@ cloudflared tunnel
 localtunnel
 ```
 
-### 19.2. Producao
+### 19.2. Produção
 
 ```text
 FynxApi:       https://api.fynx.com.br
@@ -2008,27 +2008,27 @@ Evolution API: https://evolution.fynx.com.br
 Banco:         PostgreSQL recomendado
 ```
 
-### 19.3. Migracao futura de SQLite para PostgreSQL
+### 19.3. Migração futura de SQLite para PostgreSQL
 
-Preparar desde ja:
+Preparar desde já:
 
-- repositorios isolados;
-- nao expor SQL no n8n;
-- nao acoplar workflow ao schema;
+- repositórios isolados;
+- não Expor SQL no n8n;
+- não acoplar workflow ao schema;
 - usar endpoints do FynxApi para tudo;
 - manter migrations documentadas.
 
-## 20. Checklist De Implementacao
+## 20. Checklist De Implementação
 
 ### Fase 1: Backend base
 
 ```text
-[ ] Criar dominio domains/integrations/whatsapp
+[ ] Criar domínio domains/integrations/whatsapp
 [ ] Adicionar tabelas ao schema.ts
 [ ] Criar repository de contas WhatsApp
 [ ] Criar repository de OTP
 [ ] Criar repository de auditoria
-[ ] Decidir se idempotencia fica em whatsapp_audit_logs ou em whatsapp_message_events
+[ ] Decidir se idempotência fica em whatsapp_audit_logs ou em whatsapp_message_events
 [ ] Criar OtpService
 [ ] Criar EvolutionApiClient com modo mock
 [ ] Criar middleware authenticateWhatsappService
@@ -2037,52 +2037,52 @@ Preparar desde ja:
 [ ] Registrar rotas no roteador central
 ```
 
-### Fase 2: Fluxo de verificacao
+### Fase 2: Fluxo de verificação
 
 ```text
 [ ] Endpoint request-verification
 [ ] Normalizacao E.164
 [ ] Hash do telefone
 [ ] Geracao OTP
-[ ] Persistencia do desafio
+[ ] Persistência do desafio
 [ ] Envio via Evolution API
 [ ] Endpoint confirm-verification
-[ ] Controle de expiracao
+[ ] Controle de expiração
 [ ] Controle de tentativas
-[ ] Revogacao de numero
+[ ] Revogação de número
 [ ] Listagem mascarada no frontend
 ```
 
-### Fase 3: Integracao n8n
+### Fase 3: Integração n8n
 
 ```text
 [ ] Endpoint resolve
 [ ] Geracao de contextRef
-[ ] Validacao de contextRef
+[ ] Validação de contextRef
 [ ] Endpoint dashboard
 [ ] Endpoint create transaction
 [ ] Endpoint search transactions
 [ ] Endpoint goals
 [ ] Endpoint categories
 [ ] Auditoria de actions
-[ ] Deduplicacao por providerMessageId
+[ ] Deduplicação por providerMessageId
 ```
 
 ### Fase 4: LLM e workflow
 
 ```text
-[ ] Definir schema JSON obrigatorio da LLM
-[ ] Criar prompt de extracao de intencao
+[ ] Definir schema JSON obrigatório da LLM
+[ ] Criar prompt de extração de intenção
 [ ] Validar JSON no n8n
 [ ] Pedir esclarecimento quando faltar campo
-[ ] Pedir confirmacao para acoes sensiveis
+[ ] Pedir confirmação para ações sensíveis
 [ ] Integrar texto
-[ ] Integrar audio
+[ ] Integrar áudio
 [ ] Integrar imagem
-[ ] Integrar video
+[ ] Integrar vídeo
 ```
 
-### Fase 5: Seguranca e producao
+### Fase 5: Segurança e produção
 
 ```text
 [ ] Rate limit OTP
@@ -2092,98 +2092,98 @@ Preparar desde ja:
 [ ] HTTPS
 [ ] Monitoramento de erros
 [ ] Backup do banco
-[ ] Plano de rotacao do N8N_SERVICE_TOKEN
-[ ] Documentar politica de privacidade do WhatsApp
+[ ] Plano de rotação do N8N_SERVICE_TOKEN
+[ ] Documentar política de privacidade do WhatsApp
 ```
 
 ## 21. Ordem Recomendada De Desenvolvimento
 
-1. Criar tabelas e repositorios.
-2. Implementar cadastro de numero com OTP em modo mock.
+1. Criar tabelas e repositórios.
+2. Implementar cadastro de número com OTP em modo mock.
 3. Integrar envio real via Evolution API.
 4. Criar tela no Fynx Web para cadastrar e confirmar WhatsApp.
 5. Implementar endpoint `/resolve`.
 6. Criar workflow n8n simples para texto.
 7. Implementar action de dashboard.
-8. Implementar action de criar transacao.
-9. Adicionar auditoria e idempotencia.
-10. Adicionar audio, imagem e video.
-11. Adicionar confirmacoes para acoes sensiveis.
+8. Implementar action de criar transação.
+9. Adicionar auditoria e idempotência.
+10. Adicionar áudio, imagem e vídeo.
+11. Adicionar confirmacoes para ações sensíveis.
 12. Preparar deploy em nuvem.
 
-## 22. Criterios De Aceite
+## 22. Critérios De Aceite
 
 ### Cadastro e OTP
 
 ```text
-Dado um usuario logado
-Quando ele cadastrar um numero valido
-Entao o FynxApi deve gerar OTP e enviar pelo WhatsApp
+Dado um usuário logado
+Quando ele cadastrar um número válido
+Então o FynxApi deve gerar OTP e enviar pelo WhatsApp
 
-Dado um OTP valido e nao expirado
-Quando o usuario confirmar
-Entao o numero deve ficar verified
+Dado um OTP válido e não Expirado
+Quando o usuário confirmar
+Então o número deve ficar verified
 
 Dado um OTP expirado
-Quando o usuario tentar confirmar
-Entao o backend deve rejeitar com erro apropriado
+Quando o usuário tentar confirmar
+Então o backend deve rejeitar com erro apropriado
 ```
 
 ### Mensagem autorizada
 
 ```text
-Dado um numero verified
+Dado um número verified
 Quando uma mensagem chegar no n8n
-Entao o n8n deve conseguir resolver o contexto no FynxApi
-E a LLM deve receber apenas contexto minimo
-E a action deve executar no escopo correto do usuario
+Então o n8n deve conseguir resolver o contexto no FynxApi
+E a LLM deve receber apenas contexto mínimo
+E a action deve executar no escopo correto do usuário
 ```
 
-### Mensagem nao autorizada
+### Mensagem não autorizada
 
 ```text
-Dado um numero nao verificado
+Dado um número não verificado
 Quando uma mensagem chegar
-Entao o FynxApi deve retornar authorized=false
+Então o FynxApi deve retornar authorized=false
 E o n8n deve responder orientando cadastro no Fynx Web
 ```
 
-### Criacao de transacao
+### Criação de transação
 
 ```text
 Dado uma mensagem "gastei 45 no almoco"
-Quando a LLM extrair os campos obrigatorios
-Entao o n8n deve chamar o endpoint de criacao
-E o FynxApi deve criar a transacao para o usuario correto
-E o usuario deve receber confirmacao no WhatsApp
+Quando a LLM extrair os campos obrigatórios
+Então o n8n deve chamar o endpoint de criação
+E o FynxApi deve criar a transação para o usuário correto
+E o usuário deve receber confirmação no WhatsApp
 ```
 
-## 23. Riscos E Mitigacoes
+## 23. Riscos E Mitigações
 
 ```text
-Risco: numero de WhatsApp cadastrado errado
-Mitigacao: OTP obrigatorio antes de liberar uso
+Risco: número de WhatsApp cadastrado errado
+Mitigação: OTP obrigatório antes de liberar uso
 
 Risco: LLM inventar dados
-Mitigacao: schema JSON, validacao Zod e confirmacao em baixa confianca
+Mitigação: schema JSON, validação Zod e confirmação em baixa confiança
 
-Risco: duplicar transacao por retry do webhook
-Mitigacao: providerMessageId unico em whatsapp_audit_logs no MVP ou tabela whatsapp_message_events em producao
+Risco: duplicar transação por retry do webhook
+Mitigação: providerMessageId Único em whatsapp_audit_logs no MVP ou tabela whatsapp_message_events em produção
 
-Risco: vazamento entre usuarios
-Mitigacao: resolve por phone_hash no backend, contextRef assinado e actions sempre escopadas por userId interno
+Risco: vazamento entre usuários
+Mitigação: resolve por phone_hash no backend, contextRef assinado e actions sempre escopadas por userId interno
 
 Risco: token do n8n vazado
-Mitigacao: token forte, rotacao, logs sem token, HTTPS e rate limit
+Mitigação: token forte, rotação, logs sem token, HTTPS e rate limit
 
 Risco: n8n virar backend paralelo
-Mitigacao: n8n so orquestra; toda regra e persistencia passam pelo FynxApi
+Mitigação: n8n só orquestra; toda regra e persistência passam pelo FynxApi
 ```
 
-## 24. Conclusao
+## 24. Conclusão
 
-A implementacao correta e tratar WhatsApp como um dominio de integracao do `FynxApi`.
+A implementação correta e tratar WhatsApp como um domínio de integração do `FynxApi`.
 
-O Fynx Web permite que o usuario cadastre e verifique seu numero. A Evolution API entrega e recebe mensagens. O n8n orquestra midia, LLM e resposta. O FynxApi permanece como autoridade de autenticacao, autorizacao, regra de negocio, persistencia, auditoria e seguranca.
+O Fynx Web permite que o usuário cadastre e verifique seu número. A Evolution API entrega e recebe mensagens. O n8n orquestra mídia, LLM e resposta. O FynxApi permanece como autoridade de autenticação, autorização, regra de negócio, persistência, auditoria e Segurança.
 
-Esse desenho permite comecar em ambiente local com SQLite e mocks, mas ja deixa o sistema preparado para nuvem, Evolution API hospedada, n8n em producao, HTTPS, segredos rotacionaveis e futura migracao para PostgreSQL.
+Esse desenho permite começar em ambiente local com SQLite e mocks, mas já deixa o sistema preparado para nuvem, Evolution API hospedada, n8n em produção, HTTPS, segredos rotacionáveis e futura migração para PostgreSQL.

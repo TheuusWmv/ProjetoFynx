@@ -51,7 +51,7 @@ Você precisará dos arquivos do projeto e um login e senha válidos, que pode s
     - `npm run dev`  
 2. **Inicializar Frontend,** digite os seguintes comandos na ordem apresentada:  
     - crie uma nova aba do terminal
-    - `cd ProjetoFynx/FynxV2`
+    - `cd ProjetoFynx/FynxFront`
     - `npm install` (*obs: usar apenas na primeira vez*)
     - `npm run dev`
 

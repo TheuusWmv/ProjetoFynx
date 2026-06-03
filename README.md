@@ -1,10 +1,10 @@
 # FYNX – Plataforma de Gestão Financeira com Gamificação
 
-![Logo FYNX](FynxV2/src/assets/FYNX%20CABRA%20SF.png)
+![Logo FYNX](FynxFront/src/assets/FYNX%20CABRA%20SF.png)
 
 FYNX é um software de gestão financeira pessoal com elementos de gamificação, criado para incentivar hábitos de economia e planejamento. A proposta é transformar o controle financeiro em uma experiência envolvente, com metas, ranking, ligas e conquistas que recompensam o progresso do usuário.
 
-Este repositório centraliza o backend (`FynxApi`) e o frontend (`FynxV2`) da plataforma.
+Este repositório centraliza o backend (`FynxApi`) e o frontend (`FynxFront`) da plataforma.
 
 ---
 
@@ -35,7 +35,7 @@ ProjetoFynx/
 │   ├── package.json                    # Scripts (dev/build/start)
 │   └── tsconfig.json                   # Configuração TypeScript
 │
-└── FynxV2/            # Frontend React + Vite + TypeScript
+└── FynxFront/            # Frontend React + Vite + TypeScript
     ├── src/
     │   ├── pages/                      # Páginas (Dashboard, Ranking, Goals, Login, 404)
     │   ├── components/                 # Layout, Sidebar, modais, UI (shadcn/ui)
@@ -81,7 +81,7 @@ ProjetoFynx/
 
 ---
 
-## Frontend (FynxV2)
+## Frontend (FynxFront)
 
 - SPA em React + Vite + TypeScript.
 - UI com shadcn/ui (Radix UI + TailwindCSS) e TanStack Query para dados.
@@ -122,9 +122,9 @@ ProjetoFynx/
 
 Servidor disponível em `http://localhost:3001`.
 
-### 2) Frontend – FynxV2
+### 2) Frontend – FynxFront
 
-1. Vá para o frontend: `cd ProjetoFynx/FynxV2`
+1. Vá para o frontend: `cd ProjetoFynx/FynxFront`
 2. Instale dependências: `npm install`
 3. Execute o dev server: `npm run dev`
 4. Acesse `http://localhost:5173`
@@ -143,13 +143,13 @@ O frontend está configurado para chamar o backend via proxy (`/api → http://l
 
 ### Frontend (porta do dev server e proxy)
 
-- Arquivo: `FynxV2/vite.config.ts`
+- Arquivo: `FynxFront/vite.config.ts`
   - `server.port`: porta do Vite (padrão `5173`).
   - `server.proxy["/api"].target`: URL do backend (padrão `http://localhost:3001`).
 
 ### Cliente HTTP (quando NÃO usar proxy)
 
-- Arquivo: `FynxV2/src/lib/apiClient.ts`
+- Arquivo: `FynxFront/src/lib/apiClient.ts`
   - Troque `BASE_URL = "/api/v1"` por `BASE_URL = "http://localhost:<PORTA_API>/api/v1"`.
   - Use essa abordagem se preferir chamadas diretas sem proxy.
 

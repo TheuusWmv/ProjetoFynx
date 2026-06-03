@@ -1,41 +1,41 @@
-﻿# Projeto de Persistencia e Banco de Dados - FYNX Rev. 06
+﻿# Projeto de Persistência e Banco de Dados - FYNX Rev. 06
 
 > Documento do modelo de dados da Rev06, validado contra `FynxApi/src/infrastructure/database/schema.ts` e `database.ts`.
 
 ---
 
-## 1. Estrategia de Persistencia
+## 1. Estratégia de Persistência
 
-O backend usa SQLite no ambiente atual. A inicializacao ocorre em `database.ts`, que executa:
+O backend usa SQLite no ambiente atual. A inicialização ocorre em `database.ts`, que executa:
 
 1. `createTables()` com as tabelas definidas em `schema.ts`.
-2. criacao complementar de `custom_categories` e `budgets`.
+2. criação complementar de `custom_categories` e `budgets`.
 3. `applyMigrations()` para colunas evolutivas.
-4. `seedInitialData()` para categorias, usuario demo, achievements e badges.
+4. `seedInitialData()` para categorias, usuário demo, achievements e badges.
 
-O desenho arquitetural usa uma diretriz DDD: controllers e dominio nao devem depender diretamente de SQL. Sempre que possivel, a persistencia deve ser acessada por services/use cases e repositories.
+O desenho arquitetural usa uma diretriz DDD: controllers e domínio não devem depender diretamente de SQL. Sempre que possível, a persistência deve ser acessada por services/use cases e repositories.
 
 ---
 
-## 2. Catalogo de Tabelas e Status Real
+## 2. Catálogo de Tabelas e Status Real
 
-| Tabela | Origem | Contexto | Status | Observacao |
+| Tabela | Origem | Contexto | Status | Observação |
 |---|---|---|---|---|
-| `users` | `schema.ts` | Identity | Implementado | Guarda usuario e credenciais. |
+| `users` | `schema.ts` | Identity | Implementado | Guarda usuário e credenciais. |
 | `categories` | `schema.ts` | Financial | Implementado | Categorias globais. |
-| `transactions` | `schema.ts` | Financial | Implementado | Lancamentos financeiros. |
+| `transactions` | `schema.ts` | Financial | Implementado | Lançamentos financeiros. |
 | `spending_goals` | `schema.ts` | Financial | Implementado | Metas de gasto e economia por `goal_type`. |
-| `user_scores` | `schema.ts` | Gamification | Implementado | Score, nivel, liga e streak. |
-| `achievements` | `schema.ts` | Gamification | Implementado | Catalogo de conquistas. |
-| `user_achievements` | `schema.ts` | Gamification | Implementado | Conquistas ganhas por usuario. |
-| `badges` | `schema.ts` | Gamification | Implementado | Catalogo visual de badges. |
-| `user_badges` | `schema.ts` | Gamification | Implementado | Badges ganhos por usuario. |
+| `user_scores` | `schema.ts` | Gamification | Implementado | Score, nível, liga e streak. |
+| `achievements` | `schema.ts` | Gamification | Implementado | Catálogo de conquistas. |
+| `user_achievements` | `schema.ts` | Gamification | Implementado | Conquistas ganhas por usuário. |
+| `badges` | `schema.ts` | Gamification | Implementado | Catálogo visual de badges. |
+| `user_badges` | `schema.ts` | Gamification | Implementado | Badges ganhos por usuário. |
 | `custom_categories` | `database.ts` | Financial | Implementado | Criada fora de `SCHEMA`, como compatibilidade. |
-| `budgets` | `database.ts` | Financial | Implementado | Criada fora de `SCHEMA`, com nomes fisicos diferentes dos tipos TS. |
-| `spending_limits` | Nao encontrada | Financial | Pendente | Existe modulo de rota/service, mas nao ha tabela fisica no schema atual. |
-| `whatsapp_sessions` | Nao encontrada | Omnichannel | Planejado | Nao documentar como ativo. |
-| `whatsapp_notification_logs` | Nao encontrada | Omnichannel | Planejado | Nao documentar como ativo. |
-| `audit_logs` | Nao encontrada | Admin/Audit | Planejado | Requer migration propria. |
+| `budgets` | `database.ts` | Financial | Implementado | Criada fora de `SCHEMA`, com nomes físicos diferentes dos tipos TS. |
+| `spending_limits` | Não Encontrada | Financial | Pendente | Existe módulo de rota/service, mas não há tabela física no schema atual. |
+| `whatsapp_sessions` | Não Encontrada | Omnichannel | Planejado | Não documentar como ativo. |
+| `whatsapp_notification_logs` | Não Encontrada | Omnichannel | Planejado | Não documentar como ativo. |
+| `audit_logs` | Não Encontrada | Admin/Audit | Planejado | Requer migration própria. |
 
 ---
 
@@ -64,32 +64,32 @@ erDiagram
 
 ### 3.1. Cardinalidades
 
-| Relacao | Cardinalidade | Regra |
+| Relação | Cardinalidade | Regra |
 |---|---|---|
-| `users -> transactions` | 1:N | Toda transacao tem `user_id`. |
-| `users -> spending_goals` | 1:N | Metas pertencem a um usuario. |
-| `users -> budgets` | 1:N | Budgets pertencem a um usuario. |
-| `users -> user_scores` | 1:1 | `user_scores.user_id` e unico. |
-| `users -> custom_categories` | 1:N | Categorias customizadas sao isoladas por usuario. |
-| `transactions -> spending_goals` | N:0..1 | `spending_goal_id` e `saving_goal_id` sao opcionais. |
-| `achievements -> user_achievements` | 1:N | Catalogo e relacao de ganho. |
-| `badges -> user_badges` | 1:N | Catalogo e relacao de ganho. |
+| `users -> transactions` | 1:N | Toda transação tem `user_id`. |
+| `users -> spending_goals` | 1:N | Metas pertencem a um usuário. |
+| `users -> budgets` | 1:N | Budgets pertencem a um usuário. |
+| `users -> user_scores` | 1:1 | `user_scores.user_id` é único. |
+| `users -> custom_categories` | 1:N | Categorias customizadas são isoladas por usuário. |
+| `transactions -> spending_goals` | N:0..1 | `spending_goal_id` e `saving_goal_id` são opcionais. |
+| `achievements -> user_achievements` | 1:N | Catálogo e relação de ganho. |
+| `badges -> user_badges` | 1:N | Catálogo e relação de ganho. |
 
 ---
 
-## 4. Modelo Logico e Modelo Fisico
+## 4. Modelo Lógico e Modelo Físico
 
-### 4.1. Modelo Logico
+### 4.1. Modelo Lógico
 
-Artefato visual do modelo logico relacional:
+Artefato visual do modelo lógico relacional:
 
-![Modelo Logico Banco de Dados](./imagens/Modelo%20Logico%20-%20Banco%20de%20dados.svg)
+![Modelo Lógico Banco de Dados](./imagens/Modelo%20Logico%20-%20Banco%20de%20dados.svg)
 
-No modelo logico, as entidades centrais sao `users`, `transactions`, `spending_goals`, `budgets`, `custom_categories`, `user_scores`, `achievements` e `badges`. Relacionamentos multiusuario usam `user_id` como chave estrangeira ou criterio obrigatorio de isolamento.
+No modelo lógico, as entidades centrais são `users`, `transactions`, `spending_goals`, `budgets`, `custom_categories`, `user_scores`, `achievements` e `badges`. Relacionamentos multiusuário usam `user_id` como chave estrangeira ou critério obrigatório de isolamento.
 
-### 4.2. Modelo Fisico
+### 4.2. Modelo Físico
 
-O modelo fisico e a implementacao SQLite descrita em `schema.ts` e `database.ts`. Tipos `DECIMAL(10,2)`, `TEXT`, `DATE`, `DATETIME` e `INTEGER` sao usados conforme suporte do SQLite. Tabelas criadas fora de `SCHEMA`, como `custom_categories` e `budgets`, continuam documentadas porque fazem parte da inicializacao real.
+O modelo físico é a implementação SQLite descrita em `schema.ts` e `database.ts`. Tipos `DECIMAL(10,2)`, `TEXT`, `DATE`, `DATETIME` e `INTEGER` são usados conforme suporte do SQLite. Tabelas criadas fora de `SCHEMA`, como `custom_categories` e `budgets`, continuam documentadas porque fazem parte da inicialização real.
 
 ---
 
@@ -99,89 +99,89 @@ O modelo fisico e a implementacao SQLite descrita em `schema.ts` e `database.ts`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `name` | TEXT | Nao | - | Nome do usuario. |
-| `email` | TEXT | Nao | - | Unico. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `name` | TEXT | Não | - | Nome do usuário. |
+| `email` | TEXT | Não | - | Único. |
 | `password` | TEXT | Sim no schema | - | Deve guardar hash; apesar de nullable no schema, regra exige valor para login local. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
-| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualizacao. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
+| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualização. |
 
 ### 5.2. `categories`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `name` | TEXT | Nao | - | Unico global. |
-| `type` | TEXT | Nao | - | `income` ou `expense`. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `name` | TEXT | Não | - | Único global. |
+| `type` | TEXT | Não | - | `income` ou `expense`. |
 | `color` | TEXT | Sim | - | Uso de UI. |
 | `icon` | TEXT | Sim | - | Uso de UI. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
 
 ### 5.3. `transactions`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `user_id` | INTEGER | Nao | - | FK para `users.id`. |
-| `amount` | DECIMAL(10,2) | Nao | - | Regra RN001 exige valor maior que zero. |
-| `description` | TEXT | Nao | - | Descricao obrigatoria. |
-| `category` | TEXT | Nao | - | Categoria obrigatoria. |
-| `date` | DATE | Nao | - | Data do fato financeiro. |
-| `type` | TEXT | Nao | - | `income` ou `expense`. |
-| `notes` | TEXT | Sim | - | Observacao. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `user_id` | INTEGER | Não | - | FK para `users.id`. |
+| `amount` | DECIMAL(10,2) | Não | - | Regra RN001 exige valor maior que zero. |
+| `description` | TEXT | Não | - | Descrição obrigatória. |
+| `category` | TEXT | Não | - | Categoria obrigatória. |
+| `date` | DATE | Não | - | Data do fato financeiro. |
+| `type` | TEXT | Não | - | `income` ou `expense`. |
+| `notes` | TEXT | Sim | - | Observação. |
 | `spending_goal_id` | INTEGER | Sim | - | FK opcional para `spending_goals.id`. |
 | `saving_goal_id` | INTEGER | Sim | - | FK opcional para `spending_goals.id`. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
-| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualizacao. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
+| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualização. |
 
-**Nota:** `transactions.types.ts` possui campos ricos como `paymentMethod`, `tags`, `location`, `recurring` e `attachments`. Esses campos nao aparecem no schema fisico atual. Devem ser documentados como contrato de tipo em evolucao, nao como colunas persistidas.
+**Nota:** `transactions.types.ts` possui campos ricos como `paymentMethod`, `tags`, `location`, `recurring` e `attachments`. Esses campos não aparecem no schema físico atual. Devem ser documentados como contrato de tipo em evolução, não como colunas persistidas.
 
 ### 5.4. `spending_goals`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `user_id` | INTEGER | Nao | - | FK para `users.id`. |
-| `title` | TEXT | Nao | - | Nome da meta. |
-| `category` | TEXT | Nao | - | Categoria relacionada. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `user_id` | INTEGER | Não | - | FK para `users.id`. |
+| `title` | TEXT | Não | - | Nome da meta. |
+| `category` | TEXT | Não | - | Categoria relacionada. |
 | `goal_type` | TEXT | Sim | `spending` | `spending` ou `saving`. |
-| `target_amount` | DECIMAL(10,2) | Nao | - | Valor alvo. |
+| `target_amount` | DECIMAL(10,2) | Não | - | Valor alvo. |
 | `current_amount` | DECIMAL(10,2) | Sim | 0 | Progresso atual. |
-| `period` | TEXT | Nao | - | `monthly`, `weekly`, `yearly`. |
-| `start_date` | DATE | Sim | - | Inicio. |
+| `period` | TEXT | Não | - | `monthly`, `weekly`, `yearly`. |
+| `start_date` | DATE | Sim | - | Início. |
 | `end_date` | DATE | Sim | - | Fim. |
-| `status` | TEXT | Nao | - | `active`, `completed`, `paused`. |
-| `description` | TEXT | Sim | - | Observacao. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
-| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualizacao. |
+| `status` | TEXT | Não | - | `active`, `completed`, `paused`. |
+| `description` | TEXT | Sim | - | Observação. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
+| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualização. |
 
 ### 5.5. `user_scores`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `user_id` | INTEGER | Nao | - | FK unica para `users.id`. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `user_id` | INTEGER | Não | - | FK Única para `users.id`. |
 | `total_score` | INTEGER | Sim | 0 | Score atual. |
 | `carry_over_score` | INTEGER | Sim | 0 | Pontos preservados entre temporadas. |
-| `level` | INTEGER | Sim | 1 | Nivel do usuario. |
+| `level` | INTEGER | Sim | 1 | Nível do usuário. |
 | `league` | TEXT | Sim | Bronze | Liga atual. |
-| `current_streak` | INTEGER | Sim | 0 | Sequencia atual. |
-| `max_streak` | INTEGER | Sim | 0 | Melhor sequencia. |
-| `last_checkin` | DATE | Sim | - | Ultimo check-in. |
-| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualizacao. |
+| `current_streak` | INTEGER | Sim | 0 | Sequência atual. |
+| `max_streak` | INTEGER | Sim | 0 | Melhor sequência. |
+| `last_checkin` | DATE | Sim | - | Último check-in. |
+| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualização. |
 
 ### 5.6. `achievements` e `user_achievements`
 
-`achievements` e o catalogo de conquistas. `user_achievements` registra quais usuarios ganharam cada conquista.
+`achievements` é o catálogo de conquistas. `user_achievements` registra quais usuários ganharam cada conquista.
 
 | Tabela | Colunas principais | Integridade |
 |---|---|---|
-| `achievements` | `id`, `name`, `description`, `icon`, `points` | Catalogo sem user_id. |
+| `achievements` | `id`, `name`, `description`, `icon`, `points` | Catálogo sem user_id. |
 | `user_achievements` | `user_id`, `achievement_id`, `earned_at` | `UNIQUE(user_id, achievement_id)`. |
 
 ### 5.7. `badges` e `user_badges`
 
-`badges` e o catalogo visual. `user_badges` guarda os badges obtidos por usuario.
+`badges` é o catálogo visual. `user_badges` guarda os badges obtidos por usuário.
 
 | Tabela | Colunas principais | Integridade |
 |---|---|---|
@@ -192,35 +192,35 @@ O modelo fisico e a implementacao SQLite descrita em `schema.ts` e `database.ts`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `user_id` | INTEGER | Nao | - | FK para `users.id`. |
-| `name` | TEXT | Nao | - | Nome da categoria do usuario. |
-| `type` | TEXT | Nao | - | `income` ou `expense`. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
-| `is_active` | INTEGER | Sim | 1 | Arquivamento logico. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `user_id` | INTEGER | Não | - | FK para `users.id`. |
+| `name` | TEXT | Não | - | Nome da categoria do usuário. |
+| `type` | TEXT | Não | - | `income` ou `expense`. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
+| `is_active` | INTEGER | Sim | 1 | Arquivamento lógico. |
 
 ### 5.9. `budgets`
 
 | Coluna | Tipo | Null | Default | Regra |
 |---|---|---|---|---|
-| `id` | INTEGER | Nao | AUTOINCREMENT | PK. |
-| `user_id` | INTEGER | Nao | - | FK para `users.id`. |
-| `name` | TEXT | Nao | - | Nome do budget. |
-| `total_amount` | DECIMAL(10,2) | Nao | - | Valor total planejado. |
+| `id` | INTEGER | Não | AUTOINCREMENT | PK. |
+| `user_id` | INTEGER | Não | - | FK para `users.id`. |
+| `name` | TEXT | Não | - | Nome do budget. |
+| `total_amount` | DECIMAL(10,2) | Não | - | Valor total planejado. |
 | `spent_amount` | DECIMAL(10,2) | Sim | 0 | Valor gasto. |
-| `period` | TEXT | Nao | - | `monthly` ou `yearly` no schema fisico atual. |
-| `start_date` | DATE | Nao | - | Inicio. |
-| `end_date` | DATE | Nao | - | Fim. |
-| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criacao. |
-| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualizacao. |
+| `period` | TEXT | Não | - | `monthly` ou `yearly` no schema físico atual. |
+| `start_date` | DATE | Não | - | Início. |
+| `end_date` | DATE | Não | - | Fim. |
+| `created_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Criação. |
+| `updated_at` | DATETIME | Sim | CURRENT_TIMESTAMP | Atualização. |
 
-**Divergencia tecnica:** `goals.types.ts` usa `allocatedAmount`, `remainingAmount`, `status` e `period` incluindo `weekly`. O schema fisico usa `total_amount`, `spent_amount`, sem `status` e sem `weekly`. Esta divergencia deve ser resolvida em migration ou camada de mapeamento.
+**Divergencia técnica:** `goals.types.ts` usa `allocatedAmount`, `remainingAmount`, `status` e `period` incluindo `weekly`. O schema físico usa `total_amount`, `spent_amount`, sem `status` e sem `weekly`. Esta divergencia deve ser resolvida em migration ou camada de mapeamento.
 
 ---
 
 ## 6. DDL Atual Consolidado
 
-O DDL fonte fica em `schema.ts` e `database.ts`. Para atender ao artefato academico de script SQL, a Rev06 apresenta o extrato consolidado abaixo e mantem `schema.ts`/`database.ts` como fonte de verdade executavel.
+O DDL fonte fica em `schema.ts` e `database.ts`. Para atender ao artefato acadêmico de script SQL, a Rev06 apresenta o extrato consolidado abaixo e mantém `schema.ts`/`database.ts` como fonte de verdade executavel.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -366,11 +366,11 @@ CREATE TABLE IF NOT EXISTS budgets (
 |---|---|---|
 | `user_scores.league` | `database.ts` | Adiciona liga quando ausente. |
 | `user_scores.carry_over_score` | `database.ts` | Adiciona carry-over. |
-| `transactions.saving_goal_id` | `database.ts` | Vincula transacao a meta de economia. |
-| `transactions.spending_goal_id` | `database.ts` | Vincula transacao a meta de gasto. |
+| `transactions.saving_goal_id` | `database.ts` | Vincula transação a meta de economia. |
+| `transactions.spending_goal_id` | `database.ts` | Vincula transação a meta de gasto. |
 | `user_scores.current_streak` | `database.ts` | Adiciona streak atual. |
-| `user_scores.max_streak` | `database.ts` | Adiciona streak maximo. |
-| `user_scores.last_checkin` | `database.ts` | Registra ultimo check-in. |
+| `user_scores.max_streak` | `database.ts` | Adiciona streak máximo. |
+| `user_scores.last_checkin` | `database.ts` | Registra Último check-in. |
 | `spending_goals.goal_type` | `database.ts` | Diferencia meta de gasto e economia. |
 
 ---
@@ -381,7 +381,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 
 Motivo: reduzir divergencia entre schema base e tabelas complementares.
 
-### 8.2. Criar `spending_limits`, se o modulo continuar separado de goals
+### 8.2. Criar `spending_limits`, se o módulo continuar separado de goals
 
 ```sql
 CREATE TABLE IF NOT EXISTS spending_limits (
@@ -402,9 +402,9 @@ CREATE TABLE IF NOT EXISTS spending_limits (
 
 ### 8.3. Alinhar `budgets` ao contrato TypeScript
 
-Opcoes:
+Opções:
 
-- adaptar `goals.types.ts` ao schema fisico atual; ou
+- adaptar `goals.types.ts` ao schema físico atual; ou
 - migrar banco para `allocated_amount`, `remaining_amount`, `status` e `weekly`.
 
 ### 8.4. WhatsApp e auditoria
@@ -417,11 +417,11 @@ Criar apenas quando houver rota e service reais:
 
 ---
 
-## 9. Indices Recomendados
+## 9. Índices Recomendados
 
-| Indice | Tabela | Justificativa |
+| Índice | Tabela | Justificativa |
 |---|---|---|
-| `idx_transactions_user_date` | `transactions(user_id, date)` | Dashboard e historico por periodo. |
+| `idx_transactions_user_date` | `transactions(user_id, date)` | Dashboard e histórico por período. |
 | `idx_transactions_user_type` | `transactions(user_id, type)` | Sumarizacao de receita/despesa. |
 | `idx_transactions_user_category` | `transactions(user_id, category)` | Breakdown por categoria. |
 | `idx_spending_goals_user_status` | `spending_goals(user_id, status)` | Listagem de metas ativas. |
@@ -432,8 +432,8 @@ Criar apenas quando houver rota e service reais:
 
 ## 10. Checklist de Integridade
 
-- Toda tabela multiusuario deve ter `user_id`.
-- Toda query multiusuario deve filtrar por `user_id`.
-- Campos existentes apenas em tipos TypeScript nao devem ser documentados como colunas.
-- Recursos planejados nao devem aparecer no catalogo como ativos.
-- Toda nova rota com persistencia exige atualizacao deste documento.
+- Toda tabela multiusuário deve ter `user_id`.
+- Toda query multiusuário deve filtrar por `user_id`.
+- Campos existentes apenas em tipos TypeScript não devem ser documentados como colunas.
+- Recursos planejados não devem aparecer no catálogo como ativos.
+- Toda nova rota com persistência exige atualização deste documento.

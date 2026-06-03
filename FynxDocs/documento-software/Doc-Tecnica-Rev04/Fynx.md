@@ -548,7 +548,7 @@ ProjetoFynx/
 │   │   ├── routes/ (Definição de rotas da API)
 │   │   └── server.ts (Entry point)
 │
-├── FynxV2/ (Frontend)
+├── FynxFront/ (Frontend)
 │   ├── src/
 │   │   ├── components/ (UI e Widgets)
 │   │   ├── pages/ (Views: Index, Ranking, Goal...)

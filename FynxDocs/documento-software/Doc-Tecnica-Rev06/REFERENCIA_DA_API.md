@@ -1,14 +1,14 @@
 ﻿# API Reference - FYNX Rev. 06
 
-> Referencia dos contratos HTTP reais do backend `FynxApi`, alinhada a arquitetura DDD da Rev06 e validada contra os arquivos de rotas em `FynxApi/src/domains`.
+> Referência dos contratos HTTP reais do backend `FynxApi`, alinhada a arquitetura DDD da Rev06 e validada contra os arquivos de rotas em `FynxApi/src/domains`.
 
 ---
 
-## 1. Padrao Global
+## 1. Padrão Global
 
 **Base URL local:** `http://localhost:3001/api/v1`
 
-**Autenticacao:** todas as rotas, exceto `/auth/register` e `/auth/login`, exigem JWT no header:
+**Autenticação:** todas as rotas, exceto `/auth/register` e `/auth/login`, exigem JWT no header:
 
 ```http
 Authorization: Bearer <token>
@@ -29,8 +29,8 @@ Authorization: Bearer <token>
 | Status | Significado |
 |---|---|
 | Implementado | Rota registrada em `infrastructure/http/routes/index.ts`. |
-| Parcial | Existe arquivo de rota/controller, mas a rota nao esta registrada no roteador central ou depende de schema incompleto. |
-| Planejado | Documentado como evolucao, sem rota produtiva registrada. |
+| Parcial | Existe arquivo de rota/controller, mas a rota não Está registrada no roteador central ou depende de schema incompleto. |
+| Planejado | Documentado como evolução, sem rota produtiva registrada. |
 
 **Rotas registradas no roteador central:**
 
@@ -42,7 +42,7 @@ Authorization: Bearer <token>
 | `/transactions` | Implementado | `domains/financial/transactions/transactions.routes.ts` |
 | `/ranking` | Implementado | `domains/gamification/ranking/ranking.routes.ts` |
 | `/categories/custom` | Implementado | `domains/financial/custom-categories/customCategories.routes.ts` |
-| `/spending-limits` | Parcial | `domains/financial/spending-limits/spending-limits.routes.ts` existe, mas nao esta registrado no roteador central. |
+| `/spending-limits` | Parcial | `domains/financial/spending-limits/spending-limits.routes.ts` existe, mas não Está registrado no roteador central. |
 
 ---
 
@@ -50,7 +50,7 @@ Authorization: Bearer <token>
 
 ### 2.1. `POST /api/v1/auth/register`
 
-Cria um usuario e retorna token de acesso.
+Cria um usuário e retorna token de acesso.
 
 **Status:** Implementado
 **Camada:** Identity & Access
@@ -58,17 +58,17 @@ Cria um usuario e retorna token de acesso.
 
 **Body:**
 
-| Campo | Tipo | Obrigatorio | Observacao |
+| Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
 | `name` | string | Sim | Nome exibido no sistema. |
-| `email` | string | Sim | Deve ser unico em `users.email`. |
+| `email` | string | Sim | Deve ser Único em `users.email`. |
 | `password` | string | Sim | Deve ser armazenado como hash, nunca em texto puro. |
 
 **Request:**
 
 ```json
 {
-  "name": "Usuario Demo",
+  "name": "Usuário Demo",
   "email": "demo@fynx.com",
   "password": "123456"
 }
@@ -81,17 +81,17 @@ Cria um usuario e retorna token de acesso.
   "token": "jwt.token.assinado",
   "user": {
     "id": 1,
-    "name": "Usuario Demo",
+    "name": "Usuário Demo",
     "email": "demo@fynx.com"
   }
 }
 ```
 
-**Erros esperados:** `400` payload invalido, `409` email duplicado, `500` falha inesperada.
+**Erros esperados:** `400` payload inválido, `409` email duplicado, `500` falha inesperada.
 
 ### 2.2. `POST /api/v1/auth/login`
 
-Autentica usuario existente.
+Autentica usuário existente.
 
 **Status:** Implementado
 **Camada:** Identity & Access
@@ -99,7 +99,7 @@ Autentica usuario existente.
 
 **Body:**
 
-| Campo | Tipo | Obrigatorio | Observacao |
+| Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
 | `email` | string | Sim | Email cadastrado. |
 | `password` | string | Sim | Senha em texto enviada apenas no transporte HTTPS. |
@@ -120,13 +120,13 @@ Autentica usuario existente.
   "token": "jwt.token.assinado",
   "user": {
     "id": 1,
-    "name": "Usuario Demo",
+    "name": "Usuário Demo",
     "email": "demo@fynx.com"
   }
 }
 ```
 
-**Erros esperados:** `400` payload invalido, `401` credenciais invalidas.
+**Erros esperados:** `400` payload inválido, `401` credenciais inválidas.
 
 ---
 
@@ -138,23 +138,23 @@ Autentica usuario existente.
 
 ### 3.1. `GET /api/v1/transactions`
 
-Lista transacoes do usuario autenticado com filtros.
+Lista transações do usuário autenticado com filtros.
 
 **Query params:**
 
-| Parametro | Tipo | Obrigatorio | Observacao |
+| Parâmetro | Tipo | Obrigatório | Observação |
 |---|---|---|---|
-| `page` | number | Nao | Pagina atual. |
-| `limit` | number | Nao | Itens por pagina. |
-| `type` | `income`, `expense`, `all` | Nao | Filtro por tipo. |
-| `category` | string | Nao | Categoria exata. |
-| `subcategory` | string | Nao | Existe no tipo TS; persistencia atual usa categoria principal. |
-| `paymentMethod` | string | Nao | Existe no contrato TS; validar persistencia antes de tratar como campo fisico. |
-| `dateFrom` | date | Nao | Inicio do periodo. |
-| `dateTo` | date | Nao | Fim do periodo. |
-| `amountMin` | number | Nao | Valor minimo. |
-| `amountMax` | number | Nao | Valor maximo. |
-| `search` | string | Nao | Busca por texto. |
+| `page` | number | Não | Página atual. |
+| `limit` | number | Não | Itens por página. |
+| `type` | `income`, `expense`, `all` | Não | Filtro por tipo. |
+| `category` | string | Não | Categoria exata. |
+| `subcategory` | string | Não | Existe no tipo TS; persistência atual usa categoria principal. |
+| `paymentMethod` | string | Não | Existe no contrato TS; validar persistência antes de tratar como campo físico. |
+| `dateFrom` | date | Não | Início do período. |
+| `dateTo` | date | Não | Fim do período. |
+| `amountMin` | number | Não | Valor mínimo. |
+| `amountMax` | number | Não | Valor máximo. |
+| `search` | string | Não | Busca por texto. |
 
 **Response 200:**
 
@@ -166,8 +166,8 @@ Lista transacoes do usuario autenticado com filtros.
       "userId": "1",
       "type": "expense",
       "amount": 50,
-      "description": "Almoco",
-      "category": "Alimentacao",
+      "description": "Almoço",
+      "category": "Alimentação",
       "date": "2026-04-28",
       "notes": "Restaurante",
       "createdAt": "2026-04-28T10:00:00.000Z",
@@ -193,7 +193,7 @@ Lista transacoes do usuario autenticado com filtros.
 
 ### 3.2. `GET /api/v1/transactions/categories`
 
-Retorna categorias globais disponiveis para transacoes.
+Retorna categorias globais disponíveis para transações.
 
 **Response 200:**
 
@@ -201,7 +201,7 @@ Retorna categorias globais disponiveis para transacoes.
 [
   {
     "id": "1",
-    "name": "Alimentacao",
+    "name": "Alimentação",
     "type": "expense",
     "icon": "utensils",
     "color": "#ef4444"
@@ -211,7 +211,7 @@ Retorna categorias globais disponiveis para transacoes.
 
 ### 3.3. `GET /api/v1/transactions/summary`
 
-Retorna resumo financeiro do usuario.
+Retorna resumo financeiro do usuário.
 
 **Response 200:**
 
@@ -224,7 +224,7 @@ Retorna resumo financeiro do usuario.
   "averageTransaction": 161.9,
   "categoryBreakdown": [
     {
-      "category": "Alimentacao",
+      "category": "Alimentação",
       "amount": 720,
       "percentage": 31.3,
       "transactionCount": 12
@@ -243,7 +243,7 @@ Retorna resumo financeiro do usuario.
 
 ### 3.4. `GET /api/v1/transactions/stats`
 
-Retorna estatisticas derivadas.
+Retorna estatísticas derivadas.
 
 **Response 200:**
 
@@ -258,36 +258,36 @@ Retorna estatisticas derivadas.
     "description": "Aluguel",
     "type": "expense"
   },
-  "mostFrequentCategory": "Alimentacao",
+  "mostFrequentCategory": "Alimentação",
   "paymentMethodBreakdown": []
 }
 ```
 
 ### 3.5. `GET /api/v1/transactions/:id`
 
-Busca uma transacao especifica do usuario autenticado.
+Busca uma transação específica do usuário autenticado.
 
 **Response 200:** objeto `Transaction`.
-**Erros esperados:** `404` quando a transacao nao existe ou nao pertence ao usuario.
+**Erros esperados:** `404` quando a transação não Existe ou não pertence ao usuário.
 
 ### 3.6. `POST /api/v1/transactions`
 
-Cria transacao financeira.
+Cria transação financeira.
 
 **Regras relacionadas:** RF003, RN001, RN005, CSU03
 
 **Body:**
 
-| Campo | Tipo | Obrigatorio | Observacao |
+| Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
-| `type` | `income`, `expense` | Sim | Tipo da transacao. |
+| `type` | `income`, `expense` | Sim | Tipo da transação. |
 | `amount` | number | Sim | Deve ser maior que zero. |
-| `description` | string | Sim | Descricao curta. |
+| `description` | string | Sim | Descrição curta. |
 | `category` | string | Sim | Categoria valida. |
 | `date` | date | Sim | Data do fato financeiro. |
-| `notes` | string | Nao | Observacao livre. |
-| `spendingGoalId` | string | Nao | Vinculo com meta de gasto. |
-| `savingGoalId` | string | Nao | Vinculo com meta de economia. |
+| `notes` | string | Não | Observação livre. |
+| `spendingGoalId` | string | Não | Vínculo com meta de gasto. |
+| `savingGoalId` | string | Não | Vínculo com meta de economia. |
 
 **Request:**
 
@@ -295,8 +295,8 @@ Cria transacao financeira.
 {
   "type": "expense",
   "amount": 50,
-  "description": "Almoco",
-  "category": "Alimentacao",
+  "description": "Almoço",
+  "category": "Alimentação",
   "date": "2026-04-28",
   "notes": "Restaurante"
 }
@@ -306,15 +306,15 @@ Cria transacao financeira.
 
 ### 3.7. `POST /api/v1/transactions/bulk`
 
-Executa operacoes em lote.
+Executa operações em lote.
 
 **Body:**
 
-| Campo | Tipo | Obrigatorio | Observacao |
+| Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
-| `operation` | `delete`, `update`, `categorize` | Sim | Operacao solicitada. |
+| `operation` | `delete`, `update`, `categorize` | Sim | Operação solicitada. |
 | `transactionIds` | array | Sim | IDs alvo. |
-| `updateData` | object | Nao | Obrigatorio para `update` ou `categorize`. |
+| `updateData` | object | Não | Obrigatório para `update` ou `categorize`. |
 
 **Request:**
 
@@ -331,13 +331,13 @@ Executa operacoes em lote.
 {
   "success": 2,
   "failed": 0,
-  "message": "Operacao em lote concluida."
+  "message": "Operação em lote concluída."
 }
 ```
 
 ### 3.8. `PUT /api/v1/transactions/:id`
 
-Atualiza campos de uma transacao existente.
+Atualiza campos de uma transação existente.
 
 **Body:** qualquer subconjunto de `UpdateTransactionRequest`.
 
@@ -346,8 +346,8 @@ Atualiza campos de uma transacao existente.
 ```json
 {
   "amount": 64.9,
-  "description": "Almoco atualizado",
-  "category": "Alimentacao"
+  "description": "Almoço atualizado",
+  "category": "Alimentação"
 }
 ```
 
@@ -355,15 +355,15 @@ Atualiza campos de uma transacao existente.
 
 ### 3.9. `DELETE /api/v1/transactions/:id`
 
-Remove transacao do usuario autenticado.
+Remove transação do usuário autenticado.
 
-**Regras relacionadas:** RN004, CSU de exclusao/estorno.
+**Regras relacionadas:** RN004, CSU de exclusão/estorno.
 
 **Response 200:**
 
 ```json
 {
-  "message": "Transacao removida com sucesso."
+  "message": "Transação removida com sucesso."
 }
 ```
 
@@ -377,7 +377,7 @@ Remove transacao do usuario autenticado.
 
 ### 4.1. `GET /api/v1/goals`
 
-Retorna visao consolidada de metas, budgets e progresso.
+Retorna visão consolidada de metas, budgets e progresso.
 
 **Response 200:**
 
@@ -396,7 +396,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 
 ### 4.2. Spending goals
 
-| Metodo | Path | Descricao |
+| Método | Path | Descrição |
 |---|---|---|
 | `GET` | `/api/v1/goals/spending-goals` | Lista metas. |
 | `GET` | `/api/v1/goals/spending-goals/:id` | Busca meta por ID. |
@@ -404,7 +404,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 | `PUT` | `/api/v1/goals/spending-goals/:id` | Atualiza meta. |
 | `DELETE` | `/api/v1/goals/spending-goals/:id` | Remove meta. |
 | `PATCH` | `/api/v1/goals/spending-goals/:id/progress` | Atualiza progresso diretamente. |
-| `PATCH` | `/api/v1/goals/spending-goals/:id/progress-transaction` | Atualiza progresso a partir de transacao. |
+| `PATCH` | `/api/v1/goals/spending-goals/:id/progress-transaction` | Atualiza progresso a partir de transação. |
 
 **Create body:**
 
@@ -425,20 +425,20 @@ Retorna visao consolidada de metas, budgets e progresso.
 
 ### 4.3. Budgets
 
-| Metodo | Path | Descricao |
+| Método | Path | Descrição |
 |---|---|---|
-| `GET` | `/api/v1/goals/budgets` | Lista orcamentos. |
-| `GET` | `/api/v1/goals/budgets/:id` | Busca orcamento por ID. |
-| `POST` | `/api/v1/goals/budgets` | Cria orcamento. |
-| `PUT` | `/api/v1/goals/budgets/:id` | Atualiza orcamento. |
-| `DELETE` | `/api/v1/goals/budgets/:id` | Remove orcamento. |
+| `GET` | `/api/v1/goals/budgets` | Lista orçamentos. |
+| `GET` | `/api/v1/goals/budgets/:id` | Busca orçamento por ID. |
+| `POST` | `/api/v1/goals/budgets` | Cria orçamento. |
+| `PUT` | `/api/v1/goals/budgets/:id` | Atualiza orçamento. |
+| `DELETE` | `/api/v1/goals/budgets/:id` | Remove orçamento. |
 | `PATCH` | `/api/v1/goals/budgets/:id/spending` | Atualiza gasto acumulado. |
 
 **Create body:**
 
 ```json
 {
-  "name": "Orcamento mensal",
+  "name": "Orçamento mensal",
   "category": "Geral",
   "allocatedAmount": 3500,
   "period": "monthly",
@@ -447,7 +447,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 }
 ```
 
-**Observacao de schema:** a interface TypeScript usa `allocatedAmount`, mas a tabela fisica complementar `budgets` em `database.ts` usa `total_amount` e `spent_amount`. A documentacao deve preservar essa divergencia ate a camada de mapeamento ser consolidada.
+**Observação de schema:** a interface TypeScript usa `allocatedAmount`, mas a tabela física complementar `budgets` em `database.ts` usa `total_amount` e `spent_amount`. A documentação deve preservar essa divergencia até a camada de mapeamento ser consolidada.
 
 ---
 
@@ -457,12 +457,12 @@ Retorna visao consolidada de metas, budgets e progresso.
 **Camada:** Analytics
 **Fonte:** `dashboard.routes.ts`
 
-| Metodo | Path | Descricao |
+| Método | Path | Descrição |
 |---|---|---|
 | `GET` | `/api/v1/dashboard` | Dados completos do dashboard. |
 | `GET` | `/api/v1/dashboard/overview` | KPIs resumidos. |
-| `POST` | `/api/v1/dashboard/transactions` | Cria transacao pelo fluxo do dashboard. |
-| `GET` | `/api/v1/dashboard/transactions` | Historico usado pelo dashboard. |
+| `POST` | `/api/v1/dashboard/transactions` | Cria transação pelo fluxo do dashboard. |
+| `GET` | `/api/v1/dashboard/transactions` | Histórico usado pelo dashboard. |
 
 **Response 200 - overview:**
 
@@ -483,17 +483,17 @@ Retorna visao consolidada de metas, budgets e progresso.
 **Camada:** Gamification
 **Fonte:** `ranking.routes.ts`, `ranking.types.ts`
 
-| Metodo | Path | Descricao |
+| Método | Path | Descrição |
 |---|---|---|
-| `GET` | `/api/v1/ranking` | Dados consolidados de ranking do usuario. |
+| `GET` | `/api/v1/ranking` | Dados consolidados de ranking do usuário. |
 | `GET` | `/api/v1/ranking/leaderboard/global` | Ranking global. |
 | `GET` | `/api/v1/ranking/leaderboard/friends` | Ranking de amigos. |
 | `GET` | `/api/v1/ranking/leaderboard/categories` | Rankings por categoria. |
-| `GET` | `/api/v1/ranking/user/:userId` | Posicao de um usuario. |
-| `GET` | `/api/v1/ranking/score/:userId` | Calcula score do usuario. |
+| `GET` | `/api/v1/ranking/user/:userId` | Posição de um usuário. |
+| `GET` | `/api/v1/ranking/score/:userId` | Calcula score do usuário. |
 | `PUT` | `/api/v1/ranking/score/:userId` | Atualiza score. |
-| `GET` | `/api/v1/ranking/achievements/:userId` | Conquistas do usuario. |
-| `GET` | `/api/v1/ranking/badges/:userId` | Badges do usuario. |
+| `GET` | `/api/v1/ranking/achievements/:userId` | Conquistas do usuário. |
+| `GET` | `/api/v1/ranking/badges/:userId` | Badges do usuário. |
 | `POST` | `/api/v1/ranking/reset-season` | Reset sazonal. |
 
 **Response 200 - leaderboard:**
@@ -503,7 +503,7 @@ Retorna visao consolidada de metas, budgets e progresso.
   {
     "position": 1,
     "userId": "1",
-    "username": "Usuario Demo",
+    "username": "Usuário Demo",
     "score": 1250,
     "level": 4,
     "league": "Prata",
@@ -513,7 +513,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 ]
 ```
 
-**Nota de seguranca:** `PUT /score/:userId` e `POST /reset-season` devem ser tratados como endpoints administrativos. Se a implementacao atual nao restringir perfil, registrar lacuna em `REQUISITOS_E_REGRAS.md` e `ARQUITETURA.md`.
+**Nota de Segurança:** `PUT /score/:userId` e `POST /reset-season` devem ser tratados como endpoints administrativos. Se a implementação atual não restringir perfil, registrar lacuna em `REQUISITOS_E_REGRAS.md` e `ARQUITETURA.md`.
 
 ---
 
@@ -523,9 +523,9 @@ Retorna visao consolidada de metas, budgets e progresso.
 **Camada:** Financial Core
 **Fonte:** `customCategories.routes.ts`
 
-| Metodo | Path | Descricao |
+| Método | Path | Descrição |
 |---|---|---|
-| `GET` | `/api/v1/categories/custom` | Lista categorias customizadas ativas do usuario. |
+| `GET` | `/api/v1/categories/custom` | Lista categorias customizadas ativas do usuário. |
 | `POST` | `/api/v1/categories/custom` | Cria categoria customizada. |
 | `PUT` | `/api/v1/categories/custom/:id` | Atualiza categoria. |
 | `DELETE` | `/api/v1/categories/custom/:id` | Remove categoria. |
@@ -558,9 +558,9 @@ Retorna visao consolidada de metas, budgets e progresso.
 ## 8. Spending Limits - `/api/v1/spending-limits`
 
 **Status:** Parcial
-**Motivo:** `spending-limits.routes.ts` existe, mas nao esta registrado em `infrastructure/http/routes/index.ts`. Enquanto nao for registrado, estes endpoints nao ficam acessiveis pelo prefixo global.
+**Motivo:** `spending-limits.routes.ts` existe, mas não Está registrado em `infrastructure/http/routes/index.ts`. Enquanto não for registrado, estes endpoints não ficam acessíveis pelo prefixo global.
 
-| Metodo | Path proposto | Descricao |
+| Método | Path proposto | Descrição |
 |---|---|---|
 | `GET` | `/api/v1/spending-limits` | Lista limites. |
 | `GET` | `/api/v1/spending-limits/:id` | Busca limite. |
@@ -569,7 +569,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 | `PUT` | `/api/v1/spending-limits/:id` | Atualiza limite. |
 | `PATCH` | `/api/v1/spending-limits/:id/progress` | Atualiza gasto atual. |
 | `DELETE` | `/api/v1/spending-limits/:id` | Remove limite. |
-| `GET` | `/api/v1/spending-limits/categories/list` | Lista categorias elegiveis. |
+| `GET` | `/api/v1/spending-limits/categories/list` | Lista categorias elegíveis. |
 
 **Create body:**
 
@@ -583,7 +583,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 }
 ```
 
-**Lacuna de persistencia:** nao ha tabela `spending_limits` em `schema.ts` ou `database.ts` no estado atual inspecionado. O modulo precisa de registro de rota e modelo fisico antes de ser tratado como implementado ponta a ponta.
+**Lacuna de persistência:** não há tabela `spending_limits` em `schema.ts` ou `database.ts` no estado atual inspecionado. O módulo precisa de registro de rota e modelo físico antes de ser tratado como implementado ponta a ponta.
 
 ---
 
@@ -591,7 +591,7 @@ Retorna visao consolidada de metas, budgets e progresso.
 
 **Status:** Planejado
 
-Nao ha rota `POST /api/v1/webhooks/whatsapp` registrada no roteador central atual. A integracao deve permanecer documentada como planejada ate existir rota, controller, schema e persistencia correspondentes.
+Não há rota `POST /api/v1/webhooks/whatsapp` registrada no roteador central atual. A integração deve permanecer documentada como planejada até existir rota, controller, schema e persistência correspondentes.
 
 **Contrato planejado:**
 
@@ -607,24 +607,24 @@ Nao ha rota `POST /api/v1/webhooks/whatsapp` registrada no roteador central atua
 
 ## 10. Matriz de Erros
 
-| Codigo | Quando usar | Exemplo |
+| Código | Quando usar | Exemplo |
 |---|---|---|
-| `400` | Payload invalido, query invalida ou regra simples de validacao. | Valor menor ou igual a zero. |
-| `401` | Token ausente, invalido ou expirado. | Requisicao sem `Authorization`. |
-| `403` | Usuario autenticado sem permissao. | Tentativa de alterar recurso de outro usuario. |
-| `404` | Recurso inexistente no escopo do usuario. | Transacao nao encontrada. |
-| `409` | Conflito de negocio. | Email duplicado, categoria duplicada ativa. |
-| `500` | Falha inesperada. | Erro de banco nao tratado. |
+| `400` | Payload inválido, query inválida ou regra simples de validação. | Valor menor ou igual a zero. |
+| `401` | Token ausente, inválido ou expirado. | Requisição sem `Authorization`. |
+| `403` | Usuário autenticado sem permissão. | Tentativa de alterar recurso de outro usuário. |
+| `404` | Recurso inexistente no escopo do usuário. | Transação não Encontrada. |
+| `409` | Conflito de negócio. | Email duplicado, categoria duplicada ativa. |
+| `500` | Falha inesperada. | Erro de banco não tratado. |
 
 ---
 
-## 11. Checklist de Atualizacao da API
+## 11. Checklist de Atualização da API
 
 Ao alterar uma rota no backend:
 
-1. Atualizar o arquivo de rotas do dominio.
+1. Atualizar o arquivo de rotas do domínio.
 2. Confirmar registro em `infrastructure/http/routes/index.ts`.
 3. Atualizar tipos em `*.types.ts`.
-4. Atualizar esta referencia.
+4. Atualizar esta Referência.
 5. Atualizar RF/RN/CSU relacionados.
-6. Atualizar schema de banco se houver persistencia nova.
+6. Atualizar schema de banco se houver persistência nova.

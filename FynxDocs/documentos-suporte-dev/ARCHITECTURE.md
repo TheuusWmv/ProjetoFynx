@@ -6,7 +6,7 @@ Este documento descreve a arquitetura do sistema, as stacks utilizadas no fronte
 
 O projeto está estruturado como um monorepo com dois principais módulos:
 
-- `FynxV2/`: Aplicação frontend (React + Vite)
+- `FynxFront/`: Aplicação frontend (React + Vite)
 - `FynxApi/`: API backend (Express + TypeScript)
 
 Ambiente de desenvolvimento:
@@ -33,7 +33,7 @@ Ambiente de desenvolvimento:
 
 ---
 
-## Frontend (FynxV2)
+## Frontend (FynxFront)
 
 ### Stack Principal
 - `React 18` e `TypeScript 5`
@@ -195,7 +195,7 @@ Para produção, recomenda-se introduzir um banco de dados e um ORM.
 ---
 
 ## Referências Rápidas
-- Frontend: `FynxV2/` → `vite.config.ts`, `tailwind.config.ts`, `src/pages`, `src/components`, `src/hooks`
+- Frontend: `FynxFront/` → `vite.config.ts`, `tailwind.config.ts`, `src/pages`, `src/components`, `src/hooks`
 - Backend: `FynxApi/` → `src/server.ts`, `src/routes/index.ts`, `src/modules/*`
 - API: base `"/api/v1"` (veja o `README.md` para lista de endpoints e exemplos)
 

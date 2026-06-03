@@ -687,16 +687,16 @@ graph TD
 
 ### **4.1. Arquitetura do Sistema** {#arquitetura-do-sistema}
 
-O projeto FYNX é estruturado como um **monorepo**, contendo duas aplicações principais: o frontend (`FynxV2`) e o backend (`FynxApi`). Esta abordagem foi escolhida para simplificar o desenvolvimento, o versionamento e o processo de build na fase inicial do projeto, mantendo uma separação lógica clara entre as camadas de apresentação e de negócio.
+O projeto FYNX é estruturado como um **monorepo**, contendo duas aplicações principais: o frontend (`FynxFront`) e o backend (`FynxApi`). Esta abordagem foi escolhida para simplificar o desenvolvimento, o versionamento e o processo de build na fase inicial do projeto, mantendo uma separação lógica clara entre as camadas de apresentação e de negócio.
 
--   **Frontend (`FynxV2`)**: Uma Single-Page Application (SPA) construída com React, Vite e TypeScript. É responsável por toda a interface do usuário, interações e visualização de dados.
+-   **Frontend (`FynxFront`)**: Uma Single-Page Application (SPA) construída com React, Vite e TypeScript. É responsável por toda a interface do usuário, interações e visualização de dados.
 -   **Backend (`FynxApi`)**: Uma API RESTful desenvolvida com Node.js, Express e TypeScript. É responsável pelas regras de negócio, processamento de dados e comunicação com o banco de dados (atualmente em memória).
 
 #### **Diagrama de Arquitetura**
 
 ```
 ┌──────────────────────────┐     HTTP/S (JSON)      ┌──────────────────────────┐
-│      Frontend (FynxV2)   │                      │      Backend (FynxApi)   │
+│      Frontend (FynxFront)   │                      │      Backend (FynxApi)   │
 │      (Cliente/Browser)   │                      │      (Servidor)          │
 ├──────────────────────────┤                      ├──────────────────────────┤
 │                          │                      │                          │
@@ -825,7 +825,7 @@ Para um ambiente de produção, a migração para um banco de dados relacional c
     -   **Module Pattern**: A API é organizada em módulos de domínio (`dashboard`, `transactions`, `goals`, etc.), promovendo a coesão e o baixo acoplamento.
     -   **Singleton**: Os serviços que gerenciam os dados em memória são instanciados como singletons, garantindo um único ponto de acesso aos dados mockados.
 
--   **Frontend (`FynxV2`)**:
+-   **Frontend (`FynxFront`)**:
     -   **Component-Based Architecture**: A UI é construída a partir de componentes reutilizáveis e independentes (padrão no React).
     -   **Hook Pattern**: A lógica de estado e ciclo de vida é encapsulada em hooks customizados (ex: `useDashboard`), promovendo a reutilização.
     -   **Provider Pattern**: Usado para gerenciar estados globais, como o tema da aplicação (`next-themes`) e o estado da barra lateral.
@@ -843,7 +843,7 @@ O sistema FYNX adota uma arquitetura de **Single Page Application (SPA)** com **
 │                        FYNX ECOSYSTEM                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐    HTTP/REST    ┌─────────────────────┐   │
-│  │   FynxV2        │ ◄──────────────► │     FynxApi         │   │
+│  │   FynxFront        │ ◄──────────────► │     FynxApi         │   │
 │  │   (Frontend)    │                  │     (Backend)       │   │
 │  │                 │                  │                     │   │
 │  │ • React 18      │                  │ • Express.js        │   │
@@ -863,7 +863,7 @@ O sistema FYNX adota uma arquitetura de **Single Page Application (SPA)** com **
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### **5.2. Arquitetura do Frontend (FynxV2)** {#arquitetura-do-frontend-fynxv2}
+### **5.2. Arquitetura do Frontend (FynxFront)** {#arquitetura-do-frontend-FynxFront}
 
 #### **5.2.1. Estrutura de Camadas**
 

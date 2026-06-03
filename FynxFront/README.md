@@ -24,7 +24,7 @@ Fynx é uma plataforma completa de gestão financeira com gamificação e rankin
 ## 📁 Estrutura de Arquivos
 
 ```
-FynxV2/
+FynxFront/
 ├── 📄 Arquivos de Configuração
 │   ├── .gitattributes
 │   ├── .gitignore

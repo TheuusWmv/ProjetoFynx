@@ -1,4 +1,4 @@
-﻿# Fynx LLM AI Context & Map
+# Fynx LLM AI Context & Map
 
 Purpose: compact context for AI agents working on ProjetoFynx. Treat this file as an index, not as the full source of truth.
 
@@ -7,7 +7,7 @@ Purpose: compact context for AI agents working on ProjetoFynx. Treat this file a
 - Name: FYNX.
 - Type: fullstack finance app with gamification.
 - Backend: `FynxApi`.
-- Frontend: `FynxV2`.
+- Frontend: `FynxFront`.
 - Docs: `FynxDocs/documento-software/Doc-Tecnica-Rev06`.
 - Architecture: DDD-oriented, still being consolidated. Do not assume it is pure Clean Architecture everywhere.
 

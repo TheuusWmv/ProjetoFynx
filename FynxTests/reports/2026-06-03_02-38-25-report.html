@@ -1,348 +1,4 @@
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-
-// Configure color constants for terminal output
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[36m',
-  red: '\x1b[31m',
-  bgBlue: '\x1b[44m',
-  bgGreen: '\x1b[42m',
-  bgRed: '\x1b[41m'
-};
-
-function formatHeader(title) {
-  const line = '='.repeat(80);
-  return `${colors.bright}${colors.blue}${line}\n${title}\n${line}${colors.reset}\n`;
-}
-
-function getTimestamp() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-  return `${dateStr}_${timeStr}`;
-}
-
-const SECURITY_SCAN_CATALOG = {
-  dependencies: {
-    title: 'Dependencias e supply chain',
-    owasp: 'OWASP A06:2021 - Vulnerable and Outdated Components',
-    description: 'Verifica se pacotes de terceiros possuem vulnerabilidades conhecidas ou se o projeto nao usa lockfile para fixar versoes instaladas.',
-    examples: ['npm audit', 'package lockfile', 'pacotes vulneraveis', 'integridade da instalacao']
-  },
-  secrets: {
-    title: 'Segredos e credenciais',
-    owasp: 'OWASP A02/A07:2021 - Cryptographic Failures / Identification and Authentication Failures',
-    description: 'Procura credenciais, tokens, chaves privadas, strings de conexao e senhas hardcoded que poderiam permitir acesso indevido.',
-    examples: ['API keys', 'tokens JWT/Bearer', 'senhas em codigo', 'chaves privadas']
-  },
-  code_patterns: {
-    title: 'Padroes perigosos de codigo',
-    owasp: 'OWASP A03:2021 - Injection',
-    description: 'Busca construcoes associadas a injecao de codigo, SQL injection, XSS e desserializacao insegura.',
-    examples: ['eval/exec', 'SQL por concatenacao', 'innerHTML inseguro', 'pickle/yaml inseguro']
-  },
-  configuration: {
-    title: 'Configuracao de seguranca',
-    owasp: 'OWASP A05:2021 - Security Misconfiguration',
-    description: 'Valida configuracoes inseguras, como debug exposto, CORS perigoso e ausencia de headers de protecao HTTP.',
-    examples: ['CSP', 'HSTS', 'X-Frame-Options', 'CORS', 'debug mode']
-  }
-};
-
-// Global state to collect data for HTML report
-const reportData = {
-  timestamp: new Date().toLocaleString('pt-BR'),
-  duration: 0,
-  backend: {
-    status: 'pending',
-    summary: { total: 0, passed: 0, failed: 0 },
-    tests: [],
-    rawLog: ''
-  },
-  security: {
-    status: 'pending',
-    summary: { critical: 0, high: 0, medium: 0, total: 0 },
-    checks: [],
-    findings: [],
-    rawLog: ''
-  },
-  frontend: {
-    status: 'pending',
-    summary: { total: 0, passed: 0, failed: 0 },
-    tests: [],
-    rawLog: ''
-  }
-};
-
-const startTime = Date.now();
-
-// Helper to run a command and stream output
-function runCommand(command, args, options = {}) {
-  return new Promise((resolve) => {
-    console.log(`${colors.bright}${colors.yellow}👉 Executando: ${command} ${args.join(' ')}${colors.reset}\n`);
-    
-    const child = spawn(command, args, {
-      shell: true,
-      ...options
-    });
-
-    let stdoutData = '';
-    let stderrData = '';
-
-    child.stdout.on('data', (data) => {
-      const chunk = data.toString();
-      stdoutData += chunk;
-      process.stdout.write(chunk);
-    });
-
-    child.stderr.on('data', (data) => {
-      const chunk = data.toString();
-      stderrData += chunk;
-      process.stderr.write(chunk);
-    });
-
-    child.on('close', (code) => {
-      resolve({ code, stdout: stdoutData, stderr: stderrData });
-    });
-  });
-}
-
-async function start() {
-  console.clear();
-  console.log(formatHeader('🚀 INICIANDO ORQUESTRADOR DE TESTES E SEGURANÇA - FYNX'));
-  
-  // 1. Backend Tests
-  console.log(formatHeader('🧪 ETAPA 1/3: TESTES DE INTEGRAÇÃO DO BACKEND (VITEST)'));
-  const vitestReportPath = path.join(__dirname, 'temp_vitest_report.json');
-  
-  // Ensure any old temp reports are deleted
-  if (fs.existsSync(vitestReportPath)) {
-    fs.unlinkSync(vitestReportPath);
-  }
-
-  const backendResult = await runCommand('npx', [
-    'vitest', 'run', 
-    '--reporter=default', 
-    '--reporter=json', 
-    `--outputFile="${vitestReportPath}"`
-  ], {
-    cwd: path.join(__dirname, '../FynxApi')
-  });
-
-  reportData.backend.rawLog = backendResult.stdout + '\n' + backendResult.stderr;
-
-  if (fs.existsSync(vitestReportPath)) {
-    try {
-      const rawJson = fs.readFileSync(vitestReportPath, 'utf8');
-      const vitestData = JSON.parse(rawJson);
-      
-      reportData.backend.status = vitestData.success ? 'passed' : 'failed';
-      reportData.backend.summary = {
-        total: vitestData.numTotalTests || 0,
-        passed: vitestData.numPassedTests || 0,
-        failed: vitestData.numFailedTests || 0
-      };
-
-      // Extract test details
-      if (vitestData.testResults) {
-        vitestData.testResults.forEach(suite => {
-          const suiteName = path.basename(suite.name);
-          suite.assertionResults.forEach(test => {
-            reportData.backend.tests.push({
-              suite: suiteName,
-              title: test.title,
-              status: test.status,
-              duration: test.duration,
-              error: test.failureMessages && test.failureMessages.length > 0 ? test.failureMessages.join('\n') : null
-            });
-          });
-        });
-      }
-      
-      // Clean up temp file
-      fs.unlinkSync(vitestReportPath);
-    } catch (e) {
-      reportData.backend.status = 'error';
-      console.error(`${colors.red}Erro ao parsear resultados do Vitest:${colors.reset}`, e);
-    }
-  } else {
-    reportData.backend.status = 'failed';
-  }
-
-  console.log(`\n${colors.bright}${colors.green}✅ Fim dos testes do backend. Status: ${reportData.backend.status.toUpperCase()}${colors.reset}\n`);
-
-  // 2. Security Scan
-  console.log(formatHeader('🛡️ ETAPA 2/3: ANÁLISE DE SEGURANÇA E VULNERABILIDADES'));
-  const securityResult = await runCommand('python', [
-    '.agent/skills/vulnerability-scanner/scripts/security_scan.py', '.'
-  ], {
-    cwd: path.join(__dirname, '..')
-  });
-
-  reportData.security.rawLog = securityResult.stdout + '\n' + securityResult.stderr;
-
-  try {
-    const firstBrace = securityResult.stdout.indexOf('{');
-    const lastBrace = securityResult.stdout.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      const jsonStr = securityResult.stdout.substring(firstBrace, lastBrace + 1);
-      const securityData = JSON.parse(jsonStr);
-      
-      const securityFindingCount = (securityData.summary && securityData.summary.total_findings) || 0;
-      reportData.security.status = securityFindingCount > 0 ? 'warning' : 'passed';
-      reportData.security.summary = {
-        critical: (securityData.summary && securityData.summary.critical) || 0,
-        high: (securityData.summary && securityData.summary.high) || 0,
-        medium: (securityData.summary && securityData.summary.medium) || 0,
-        total: (securityData.summary && securityData.summary.total_findings) || 0
-      };
-
-      reportData.security.checks = Object.entries(SECURITY_SCAN_CATALOG).map(([scannerKey, meta]) => {
-        const scanObj = securityData.scans && securityData.scans[scannerKey];
-        const findings = scanObj && Array.isArray(scanObj.findings) ? scanObj.findings : [];
-        const hasCritical = findings.some(f => f.severity === 'critical');
-        const hasHigh = findings.some(f => f.severity === 'high');
-        const hasFindings = findings.length > 0;
-
-        return {
-          scannerKey,
-          title: meta.title,
-          owasp: meta.owasp,
-          description: meta.description,
-          examples: meta.examples,
-          status: scanObj ? scanObj.status : 'Nao executado',
-          result: !scanObj ? 'not-run' : hasCritical ? 'critical' : hasHigh ? 'high' : hasFindings ? 'warning' : 'passed',
-          findingsCount: findings.length
-        };
-      });
-
-      // Extract details
-      const extractFindings = (scannerKey, typeLabel) => {
-        const scanObj = securityData.scans && securityData.scans[scannerKey];
-        if (scanObj && scanObj.findings) {
-          scanObj.findings.forEach(f => {
-            reportData.security.findings.push({
-              type: typeLabel,
-              file: f.file || f.issue || 'N/A',
-              line: f.line || 0,
-              severity: f.severity || 'medium',
-              description: f.pattern || f.issue || f.recommendation || '',
-              snippet: f.snippet || '',
-              recommendation: f.recommendation || 'Verifique o padrão no código'
-            });
-          });
-        }
-      };
-
-      extractFindings('secrets', 'Exposição de Segredos');
-      extractFindings('code_patterns', 'Risco de Código');
-      extractFindings('configuration', 'Configuração Insegura');
-      extractFindings('dependencies', 'Dependencias Vulneraveis');
-    } else {
-      reportData.security.status = 'warning';
-    }
-  } catch (e) {
-    reportData.security.status = 'error';
-    console.error(`${colors.red}Erro ao parsear scanner de segurança:${colors.reset}`, e);
-  }
-
-  console.log(`\n${colors.bright}${colors.green}✅ Fim do scan de segurança. Status: ${reportData.security.status.toUpperCase()}${colors.reset}\n`);
-
-  // 3. Frontend Tests
-  console.log(formatHeader('💻 ETAPA 3/3: TESTES END-TO-END DO FRONTEND (PLAYWRIGHT - HEADED)'));
-  const playwrightReportPath = path.join(__dirname, 'temp_playwright_report.json');
-
-  if (fs.existsSync(playwrightReportPath)) {
-    fs.unlinkSync(playwrightReportPath);
-  }
-
-  const frontendResult = await runCommand('npx', [
-    'playwright', 'test', '--reporter=list,json'
-  ], {
-    cwd: path.join(__dirname, '../FynxFront'),
-    env: {
-      ...process.env,
-      PLAYWRIGHT_JSON_OUTPUT_NAME: playwrightReportPath
-    }
-  });
-
-  reportData.frontend.rawLog = frontendResult.stdout + '\n' + frontendResult.stderr;
-
-  if (fs.existsSync(playwrightReportPath)) {
-    try {
-      const rawJson = fs.readFileSync(playwrightReportPath, 'utf8');
-      const pwData = JSON.parse(rawJson);
-
-      const hasFailures = pwData.stats && pwData.stats.unexpected > 0;
-      reportData.frontend.status = hasFailures ? 'failed' : 'passed';
-      reportData.frontend.summary = {
-        total: (pwData.stats && pwData.stats.expected + pwData.stats.unexpected + pwData.stats.skipped) || 0,
-        passed: (pwData.stats && pwData.stats.expected) || 0,
-        failed: (pwData.stats && pwData.stats.unexpected) || 0
-      };
-
-      // Recursive spec detail collection
-      const parsePlaywrightSuites = (suite, fileName = '') => {
-        const file = suite.file || fileName;
-        if (suite.specs) {
-          suite.specs.forEach(spec => {
-            const testResult = spec.tests && spec.tests[0] && spec.tests[0].results && spec.tests[0].results[0];
-            const cleanLogs = testResult && testResult.stdout ? testResult.stdout.map(l => l.text).join('') : '';
-            
-            reportData.frontend.tests.push({
-              file: path.basename(file),
-              title: spec.title,
-              status: testResult ? testResult.status : 'unknown',
-              duration: testResult ? testResult.duration : 0,
-              logs: cleanLogs,
-              error: testResult && testResult.errors && testResult.errors.length > 0 ? testResult.errors.map(err => err.message).join('\n') : null
-            });
-          });
-        }
-        if (suite.suites) {
-          suite.suites.forEach(subSuite => parsePlaywrightSuites(subSuite, file));
-        }
-      };
-
-      if (pwData.suites) {
-        pwData.suites.forEach(s => parsePlaywrightSuites(s));
-      }
-
-      fs.unlinkSync(playwrightReportPath);
-    } catch (e) {
-      reportData.frontend.status = 'error';
-      console.error(`${colors.red}Erro ao parsear relatórios do Playwright:${colors.reset}`, e);
-    }
-  } else {
-    reportData.frontend.status = 'failed';
-  }
-
-  console.log(`\n${colors.bright}${colors.green}✅ Fim dos testes do frontend. Status: ${reportData.frontend.status.toUpperCase()}${colors.reset}\n`);
-
-  // Finalize Duration
-  reportData.duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-  // Generate HTML Report
-  generateHtmlReport();
-}
-
-function generateHtmlReport() {
-  const reportsDir = path.join(__dirname, 'reports');
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
-
-  const timestamp = getTimestamp();
-  const reportFileName = `${timestamp}-report.html`;
-  const reportPath = path.join(reportsDir, reportFileName);
-
-  const html = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -700,7 +356,7 @@ function generateHtmlReport() {
 
   <!-- Injected Data -->
   <script>
-    window.testResults = ${JSON.stringify(reportData)};
+    window.testResults = {"timestamp":"03/06/2026, 02:37:40","duration":"45.08","backend":{"status":"passed","summary":{"total":21,"passed":21,"failed":0},"tests":[{"suite":"auth.test.ts","title":"should register a new user successfully","status":"passed","duration":166,"error":null},{"suite":"auth.test.ts","title":"should not register a user with an already registered email","status":"passed","duration":13,"error":null},{"suite":"auth.test.ts","title":"should not register a user with missing fields","status":"passed","duration":10,"error":null},{"suite":"auth.test.ts","title":"should login an existing user successfully","status":"passed","duration":74,"error":null},{"suite":"auth.test.ts","title":"should not login with invalid credentials","status":"passed","duration":91,"error":null},{"suite":"goals.test.ts","title":"should create a new spending goal successfully","status":"passed","duration":111,"error":null},{"suite":"goals.test.ts","title":"should list spending goals","status":"passed","duration":15,"error":null},{"suite":"goals.test.ts","title":"should get a single spending goal by ID","status":"passed","duration":16,"error":null},{"suite":"goals.test.ts","title":"should update progress on a spending goal","status":"passed","duration":37,"error":null},{"suite":"goals.test.ts","title":"should delete a spending goal","status":"passed","duration":59,"error":null},{"suite":"goals.test.ts","title":"should create a new budget successfully","status":"passed","duration":33,"error":null},{"suite":"goals.test.ts","title":"should list budgets","status":"passed","duration":16,"error":null},{"suite":"goals.test.ts","title":"should delete a budget","status":"passed","duration":46,"error":null},{"suite":"transactions.test.ts","title":"should get transaction categories successfully","status":"passed","duration":41,"error":null},{"suite":"transactions.test.ts","title":"should create a new transaction successfully","status":"passed","duration":58,"error":null},{"suite":"transactions.test.ts","title":"should list transactions and filter them correctly","status":"passed","duration":16,"error":null},{"suite":"transactions.test.ts","title":"should get a single transaction by ID","status":"passed","duration":10,"error":null},{"suite":"transactions.test.ts","title":"should return 404 for a transaction that does not exist","status":"passed","duration":11,"error":null},{"suite":"transactions.test.ts","title":"should get transaction summary successfully","status":"passed","duration":11,"error":null},{"suite":"transactions.test.ts","title":"should get transaction stats successfully","status":"passed","duration":7,"error":null},{"suite":"transactions.test.ts","title":"should delete an existing transaction","status":"passed","duration":35,"error":null}],"rawLog":"\n\u001b[7m\u001b[1m\u001b[36m RUN \u001b[39m\u001b[22m\u001b[27m \u001b[36mv1.6.1\u001b[39m \u001b[90mC:/Users/Douglas Bernardes/Desktop/ProjetoFynx/FynxApi\u001b[39m\n\nTest database deleted for a clean run.\n\u001b[90mstdout\u001b[2m | Database.<anonymous> (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:33:29)\u001b[22m\u001b[39m\nConectado ao banco de dados SQLite.\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:7:11)\u001b[22m\u001b[39m\n🏗️ Initializing DDD Layers...\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:16:11)\u001b[22m\u001b[39m\n✅ Event Handlers Registered\n\n\u001b[90mstdout\u001b[2m | Object.info (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\shared\\utils\\logger.ts:18:13)\u001b[22m\u001b[39m\n\u001b[34m[2026-06-03T05:37:45.000Z] [INFO]\u001b[0m 🚀 Starting FYNX API Server...\n\u001b[34m[2026-06-03T05:37:45.008Z] [INFO]\u001b[0m 📁 Loading routes...\n\n\u001b[90mstdout\u001b[2m | Database.initialize (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:76:21)\u001b[22m\u001b[39m\nBanco de dados inicializado com sucesso.\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new spending goal successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.094Z] [HTTP]\u001b[0m POST /api/v1/goals/spending-goals\n\u001b[32m[2026-06-03T05:37:45.095Z] [HTTP]\u001b[0m [AuthMiddleware] Request: POST /api/v1/goals/spending-goals\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new spending goal successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.128Z] [HTTP]\u001b[0m POST /spending-goals - 201 - 34ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list spending goals\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.143Z] [HTTP]\u001b[0m GET /api/v1/goals/spending-goals\n\u001b[32m[2026-06-03T05:37:45.143Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/goals/spending-goals\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list spending goals\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.147Z] [HTTP]\u001b[0m GET /spending-goals - 200 - 4ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get a single spending goal by ID\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.158Z] [HTTP]\u001b[0m GET /api/v1/goals/spending-goals/1\n\u001b[32m[2026-06-03T05:37:45.159Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/goals/spending-goals/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get a single spending goal by ID\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.164Z] [HTTP]\u001b[0m GET /spending-goals/1 - 200 - 6ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould update progress on a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.176Z] [HTTP]\u001b[0m PATCH /api/v1/goals/spending-goals/1/progress\n\u001b[32m[2026-06-03T05:37:45.177Z] [HTTP]\u001b[0m [AuthMiddleware] Request: PATCH /api/v1/goals/spending-goals/1/progress\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould update progress on a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.201Z] [HTTP]\u001b[0m PATCH /spending-goals/1/progress - 200 - 25ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.218Z] [HTTP]\u001b[0m DELETE /api/v1/goals/spending-goals/1\n\u001b[32m[2026-06-03T05:37:45.218Z] [HTTP]\u001b[0m [AuthMiddleware] Request: DELETE /api/v1/goals/spending-goals/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.242Z] [HTTP]\u001b[0m DELETE /spending-goals/1 - 204 - 24ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.252Z] [HTTP]\u001b[0m GET /api/v1/goals/spending-goals/1\n\u001b[32m[2026-06-03T05:37:45.252Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/goals/spending-goals/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a spending goal\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.257Z] [HTTP]\u001b[0m GET /spending-goals/1 - 404 - 5ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new budget successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.269Z] [HTTP]\u001b[0m POST /api/v1/goals/budgets\n\u001b[32m[2026-06-03T05:37:45.270Z] [HTTP]\u001b[0m [AuthMiddleware] Request: POST /api/v1/goals/budgets\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new budget successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.293Z] [HTTP]\u001b[0m POST /budgets - 201 - 24ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list budgets\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.302Z] [HTTP]\u001b[0m GET /api/v1/goals/budgets\n\u001b[32m[2026-06-03T05:37:45.302Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/goals/budgets\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list budgets\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.308Z] [HTTP]\u001b[0m GET /budgets - 200 - 6ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a budget\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.319Z] [HTTP]\u001b[0m DELETE /api/v1/goals/budgets/1\n\u001b[32m[2026-06-03T05:37:45.319Z] [HTTP]\u001b[0m [AuthMiddleware] Request: DELETE /api/v1/goals/budgets/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a budget\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.340Z] [HTTP]\u001b[0m DELETE /budgets/1 - 204 - 21ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a budget\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.350Z] [HTTP]\u001b[0m GET /api/v1/goals/budgets/1\n\u001b[32m[2026-06-03T05:37:45.350Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/goals/budgets/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/goals.test.ts\u001b[2m > \u001b[22m\u001b[2mGoals and Budgets Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete a budget\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:45.353Z] [HTTP]\u001b[0m GET /budgets/1 - 404 - 3ms\n\n \u001b[32m✓\u001b[39m ../FynxTests/backend/goals.test.ts \u001b[2m (\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 336\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | Database.<anonymous> (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:33:29)\u001b[22m\u001b[39m\nConectado ao banco de dados SQLite.\n\n\u001b[90mstdout\u001b[2m | Database.initialize (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:76:21)\u001b[22m\u001b[39m\nBanco de dados inicializado com sucesso.\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:7:11)\u001b[22m\u001b[39m\n🏗️ Initializing DDD Layers...\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:16:11)\u001b[22m\u001b[39m\n✅ Event Handlers Registered\n\n\u001b[90mstdout\u001b[2m | Object.info (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\shared\\utils\\logger.ts:18:13)\u001b[22m\u001b[39m\n\u001b[34m[2026-06-03T05:37:46.379Z] [INFO]\u001b[0m 🚀 Starting FYNX API Server...\n\u001b[34m[2026-06-03T05:37:46.386Z] [INFO]\u001b[0m 📁 Loading routes...\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction categories successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.422Z] [HTTP]\u001b[0m GET /api/v1/transactions/categories\n\u001b[32m[2026-06-03T05:37:46.423Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/categories\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction categories successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.430Z] [HTTP]\u001b[0m GET /categories - 200 - 8ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new transaction successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.455Z] [HTTP]\u001b[0m POST /api/v1/transactions\n\u001b[32m[2026-06-03T05:37:46.456Z] [HTTP]\u001b[0m [AuthMiddleware] Request: POST /api/v1/transactions\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould create a new transaction successfully\u001b[22m\u001b[39m\n[Gamification] Processando score para usuário 1 após transação.\n\u001b[32m[2026-06-03T05:37:46.494Z] [HTTP]\u001b[0m POST / - 201 - 39ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list transactions and filter them correctly\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.499Z] [HTTP]\u001b[0m GET /api/v1/transactions\n\u001b[32m[2026-06-03T05:37:46.500Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould list transactions and filter them correctly\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.508Z] [HTTP]\u001b[0m GET / - 200 - 9ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get a single transaction by ID\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.515Z] [HTTP]\u001b[0m GET /api/v1/transactions/1\n\u001b[32m[2026-06-03T05:37:46.515Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get a single transaction by ID\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.519Z] [HTTP]\u001b[0m GET /1 - 200 - 4ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould return 404 for a transaction that does not exist\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.527Z] [HTTP]\u001b[0m GET /api/v1/transactions/99999\n\u001b[32m[2026-06-03T05:37:46.527Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/99999\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould return 404 for a transaction that does not exist\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.530Z] [HTTP]\u001b[0m GET /99999 - 404 - 3ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction summary successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.538Z] [HTTP]\u001b[0m GET /api/v1/transactions/summary\n\u001b[32m[2026-06-03T05:37:46.538Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/summary\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction summary successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.541Z] [HTTP]\u001b[0m GET /summary - 200 - 3ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction stats successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.546Z] [HTTP]\u001b[0m GET /api/v1/transactions/stats\n\u001b[32m[2026-06-03T05:37:46.546Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/stats\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould get transaction stats successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.548Z] [HTTP]\u001b[0m GET /stats - 200 - 2ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete an existing transaction\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.554Z] [HTTP]\u001b[0m DELETE /api/v1/transactions/1\n\u001b[32m[2026-06-03T05:37:46.554Z] [HTTP]\u001b[0m [AuthMiddleware] Request: DELETE /api/v1/transactions/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete an existing transaction\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.572Z] [HTTP]\u001b[0m DELETE /1 - 204 - 18ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete an existing transaction\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.580Z] [HTTP]\u001b[0m GET /api/v1/transactions/1\n\u001b[32m[2026-06-03T05:37:46.580Z] [HTTP]\u001b[0m [AuthMiddleware] Request: GET /api/v1/transactions/1\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/transactions.test.ts\u001b[2m > \u001b[22m\u001b[2mTransactions Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould delete an existing transaction\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:46.583Z] [HTTP]\u001b[0m GET /1 - 404 - 3ms\n\n \u001b[32m✓\u001b[39m ../FynxTests/backend/transactions.test.ts \u001b[2m (\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 190\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | Database.<anonymous> (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:33:29)\u001b[22m\u001b[39m\nConectado ao banco de dados SQLite.\n\n\u001b[90mstdout\u001b[2m | Database.initialize (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\database\\database.ts:76:21)\u001b[22m\u001b[39m\nBanco de dados inicializado com sucesso.\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:7:11)\u001b[22m\u001b[39m\n🏗️ Initializing DDD Layers...\n\n\u001b[90mstdout\u001b[2m | Module.initializeApp (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\infrastructure\\init.ts:16:11)\u001b[22m\u001b[39m\n✅ Event Handlers Registered\n\n\u001b[90mstdout\u001b[2m | Object.info (C:\\Users\\Douglas Bernardes\\Desktop\\ProjetoFynx\\FynxApi\\src\\shared\\utils\\logger.ts:18:13)\u001b[22m\u001b[39m\n\u001b[34m[2026-06-03T05:37:47.760Z] [INFO]\u001b[0m 🚀 Starting FYNX API Server...\n\u001b[34m[2026-06-03T05:37:47.764Z] [INFO]\u001b[0m 📁 Loading routes...\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould register a new user successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.822Z] [HTTP]\u001b[0m POST /api/v1/auth/register\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould register a new user successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.927Z] [HTTP]\u001b[0m POST /register - 201 - 105ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not register a user with an already registered email\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.944Z] [HTTP]\u001b[0m POST /api/v1/auth/register\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not register a user with an already registered email\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.947Z] [HTTP]\u001b[0m POST /register - 400 - 3ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not register a user with missing fields\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.956Z] [HTTP]\u001b[0m POST /api/v1/auth/register\n\u001b[32m[2026-06-03T05:37:47.957Z] [HTTP]\u001b[0m POST /register - 400 - 1ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould login an existing user successfully\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:47.967Z] [HTTP]\u001b[0m POST /api/v1/auth/login\n[AuthController] Login request received: { email: \u001b[32m'test@example.com'\u001b[39m }\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould login an existing user successfully\u001b[22m\u001b[39m\n[AuthController] Login successful for: test@example.com\n\u001b[32m[2026-06-03T05:37:48.031Z] [HTTP]\u001b[0m POST /login - 200 - 64ms\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not login with invalid credentials\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:48.037Z] [HTTP]\u001b[0m POST /api/v1/auth/login\n[AuthController] Login request received: { email: \u001b[32m'test@example.com'\u001b[39m }\n\n\u001b[90mstdout\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not login with invalid credentials\u001b[22m\u001b[39m\n\u001b[32m[2026-06-03T05:37:48.119Z] [HTTP]\u001b[0m POST /login - 401 - 82ms\n\n \u001b[32m✓\u001b[39m ../FynxTests/backend/auth.test.ts \u001b[2m (\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 356\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m21 passed\u001b[39m\u001b[22m\u001b[90m (21)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:37:42\n\u001b[2m   Duration \u001b[22m 5.62s\u001b[2m (transform 667ms, setup 16ms, collect 3.21s, tests 882ms, environment 1ms, prepare 691ms)\u001b[22m\n\nJSON report written to C:/Users/Douglas Bernardes/Desktop/ProjetoFynx/FynxTests/temp_vitest_report.json\n\n\u001b[90mstderr\u001b[2m | ../FynxTests/backend/auth.test.ts\u001b[2m > \u001b[22m\u001b[2mAuth Endpoints (Integration)\u001b[2m > \u001b[22m\u001b[2mshould not login with invalid credentials\u001b[22m\u001b[39m\n[AuthController] Login error: Credenciais inválidas\n\n"},"security":{"status":"passed","summary":{"critical":0,"high":0,"medium":0,"total":0},"checks":[{"scannerKey":"dependencies","title":"Dependencias e supply chain","owasp":"OWASP A06:2021 - Vulnerable and Outdated Components","description":"Verifica se pacotes de terceiros possuem vulnerabilidades conhecidas ou se o projeto nao usa lockfile para fixar versoes instaladas.","examples":["npm audit","package lockfile","pacotes vulneraveis","integridade da instalacao"],"status":"[OK] Supply chain checks passed","result":"passed","findingsCount":0},{"scannerKey":"secrets","title":"Segredos e credenciais","owasp":"OWASP A02/A07:2021 - Cryptographic Failures / Identification and Authentication Failures","description":"Procura credenciais, tokens, chaves privadas, strings de conexao e senhas hardcoded que poderiam permitir acesso indevido.","examples":["API keys","tokens JWT/Bearer","senhas em codigo","chaves privadas"],"status":"[OK] No secrets detected","result":"passed","findingsCount":0},{"scannerKey":"code_patterns","title":"Padroes perigosos de codigo","owasp":"OWASP A03:2021 - Injection","description":"Busca construcoes associadas a injecao de codigo, SQL injection, XSS e desserializacao insegura.","examples":["eval/exec","SQL por concatenacao","innerHTML inseguro","pickle/yaml inseguro"],"status":"[OK] No dangerous patterns","result":"passed","findingsCount":0},{"scannerKey":"configuration","title":"Configuracao de seguranca","owasp":"OWASP A05:2021 - Security Misconfiguration","description":"Valida configuracoes inseguras, como debug exposto, CORS perigoso e ausencia de headers de protecao HTTP.","examples":["CSP","HSTS","X-Frame-Options","CORS","debug mode"],"status":"[OK] Configuration secure","result":"passed","findingsCount":0}],"findings":[],"rawLog":"{\r\n  \"project\": \".\",\r\n  \"timestamp\": \"2026-06-03T02:37:48.481066\",\r\n  \"scan_type\": \"all\",\r\n  \"scans\": {\r\n    \"dependencies\": {\r\n      \"tool\": \"dependency_scanner\",\r\n      \"findings\": [],\r\n      \"status\": \"[OK] Supply chain checks passed\"\r\n    },\r\n    \"secrets\": {\r\n      \"tool\": \"secret_scanner\",\r\n      \"findings\": [],\r\n      \"status\": \"[OK] No secrets detected\",\r\n      \"scanned_files\": 225,\r\n      \"by_severity\": {\r\n        \"critical\": 0,\r\n        \"high\": 0,\r\n        \"medium\": 0\r\n      }\r\n    },\r\n    \"code_patterns\": {\r\n      \"tool\": \"pattern_scanner\",\r\n      \"findings\": [],\r\n      \"status\": \"[OK] No dangerous patterns\",\r\n      \"scanned_files\": 211,\r\n      \"by_category\": {}\r\n    },\r\n    \"configuration\": {\r\n      \"tool\": \"config_scanner\",\r\n      \"findings\": [],\r\n      \"status\": \"[OK] Configuration secure\",\r\n      \"checks\": {\r\n        \"security_headers_config\": true\r\n      }\r\n    }\r\n  },\r\n  \"summary\": {\r\n    \"total_findings\": 0,\r\n    \"critical\": 0,\r\n    \"high\": 0,\r\n    \"overall_status\": \"[OK] SECURE\"\r\n  }\r\n}\r\n\n"},"frontend":{"status":"passed","summary":{"total":4,"passed":4,"failed":0},"tests":[{"file":"goals.spec.ts","title":"acessa Goals pelo menu e cria uma nova meta preenchendo todos os campos","status":"passed","duration":10396,"logs":"","error":null},{"file":"transactions.spec.ts","title":"adiciona uma transação de entrada preenchendo todos os campos","status":"passed","duration":4565,"logs":"[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] POST /transactions called\n[Mock API] Added transaction: Entrada Teste Selenium (id: 3)\n[Mock API] GET /dashboard called. Transaction count: 3\n","error":null},{"file":"transactions.spec.ts","title":"adiciona uma transação de saída preenchendo todos os campos","status":"passed","duration":3225,"logs":"[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] POST /transactions called\n[Mock API] Added transaction: Saída Teste Selenium (id: 3)\n[Mock API] GET /dashboard called. Transaction count: 3\n","error":null},{"file":"transactions.spec.ts","title":"exclui uma transação de entrada via Recent Transactions","status":"passed","duration":1923,"logs":"[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] Intercepted request: DELETE http://localhost:3001/api/v1/transactions/1?userId=1\n[Mock API] Extracted ID: 1\n[Mock API] DELETE executed. Count before: 2, after: 1\n[Mock API] GET /dashboard called. Transaction count: 1\n[Mock API] GET /dashboard called. Transaction count: 1\n","error":null}],"rawLog":"\nRunning 4 tests using 1 worker\n\n  ✓  1 [chromium] › ..\\FynxTests\\frontend\\goals.spec.ts:92:7 › Fynx - Criar Meta (E2E) › acessa Goals pelo menu e cria uma nova meta preenchendo todos os campos (10.4s)\n[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] POST /transactions called\n[Mock API] Added transaction: Entrada Teste Selenium (id: 3)\n[Mock API] GET /dashboard called. Transaction count: 3\n  ✓  2 [chromium] › ..\\FynxTests\\frontend\\transactions.spec.ts:127:7 › Fynx - Transações (E2E) › adiciona uma transação de entrada preenchendo todos os campos (4.6s)\n[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] POST /transactions called\n[Mock API] Added transaction: Saída Teste Selenium (id: 3)\n[Mock API] GET /dashboard called. Transaction count: 3\n  ✓  3 [chromium] › ..\\FynxTests\\frontend\\transactions.spec.ts:167:7 › Fynx - Transações (E2E) › adiciona uma transação de saída preenchendo todos os campos (3.2s)\n[Mock API] GET /dashboard called. Transaction count: 2\n[Mock API] Intercepted request: DELETE http://localhost:3001/api/v1/transactions/1?userId=1\n[Mock API] Extracted ID: 1\n[Mock API] DELETE executed. Count before: 2, after: 1\n[Mock API] GET /dashboard called. Transaction count: 1\n[Mock API] GET /dashboard called. Transaction count: 1\n  ✓  4 [chromium] › ..\\FynxTests\\frontend\\transactions.spec.ts:202:7 › Fynx - Transações (E2E) › exclui uma transação de entrada via Recent Transactions (1.9s)\n\n  4 passed (32.5s)\n\n"}};
   </script>
 
   <!-- Tab and Rendering Scripts -->
@@ -855,7 +511,7 @@ function generateHtmlReport() {
           var bgHeader = suiteFailed ? 'bg-rose-500/5' : 'bg-slate-900';
 
           var htmlSuite = '<div class="border ' + headerBorder + ' rounded-2xl overflow-hidden shadow-sm">' +
-            '<div onclick="toggleExpand(\\\'' + suiteId + '\\\')" class="p-4 ' + bgHeader + ' flex items-center justify-between cursor-pointer select-none">' +
+            '<div onclick="toggleExpand(\'' + suiteId + '\')" class="p-4 ' + bgHeader + ' flex items-center justify-between cursor-pointer select-none">' +
               '<div class="flex items-center gap-3">' +
                 statusIcon +
                 '<span class="text-sm font-bold text-white">' + suiteName + '</span>' +
@@ -1006,7 +662,7 @@ function generateHtmlReport() {
           var bgHeader = specFailed ? 'bg-rose-500/5' : 'bg-slate-900';
 
           var htmlSpec = '<div class="border ' + headerBorder + ' rounded-2xl overflow-hidden shadow-sm">' +
-            '<div onclick="toggleExpand(\\\'' + specId + '\\\')" class="p-4 ' + bgHeader + ' flex items-center justify-between cursor-pointer select-none">' +
+            '<div onclick="toggleExpand(\'' + specId + '\')" class="p-4 ' + bgHeader + ' flex items-center justify-between cursor-pointer select-none">' +
               '<div class="flex items-center gap-3">' +
                 statusIcon +
                 '<span class="text-sm font-bold text-white">' + fileName + '</span>' +
@@ -1032,7 +688,7 @@ function generateHtmlReport() {
                 '</div>' +
                 '<div class="flex items-center gap-3">' +
                   (test.logs ? 
-                    '<button onclick="toggleExpand(\\\'' + logId + '\\\')" class="text-[10px] hover:text-indigo-400 text-slate-400 border border-slate-800 px-2 py-0.5 rounded flex items-center gap-1 font-medium bg-slate-900">' +
+                    '<button onclick="toggleExpand(\'' + logId + '\')" class="text-[10px] hover:text-indigo-400 text-slate-400 border border-slate-800 px-2 py-0.5 rounded flex items-center gap-1 font-medium bg-slate-900">' +
                       '<i data-lucide="terminal" class="w-3 h-3"></i> Logs da Intercepção' +
                     '</button>' : '') +
                   '<span class="text-slate-500 font-mono">' + durationInSeconds + 's</span>' +
@@ -1071,25 +727,4 @@ function generateHtmlReport() {
     }
   </script>
 </body>
-</html>`;
-
-  fs.writeFileSync(reportPath, html, 'utf8');
-
-  console.log(formatHeader('✨ COMPILAÇÃO CONCLUÍDA E RELATÓRIO HTML GERADO!'));
-  console.log(`${colors.bright}${colors.green}🎉 Concluído com sucesso!${colors.reset}`);
-  console.log(`${colors.bright}📂 Relatório HTML unificado e detalhado salvo em:${colors.reset}`);
-  console.log(`   ${colors.bright}${colors.blue}${reportPath}${colors.reset}\n`);
-  console.log(`${colors.bright}${colors.yellow}Dica: Você pode dar um duplo clique no arquivo acima para abri-lo em qualquer navegador.${colors.reset}\n`);
-
-  // Check if there are failures to determine exit code
-  const hasFailures = reportData.backend.status === 'failed' || 
-                        reportData.backend.status === 'error' || 
-                        reportData.security.status === 'warning' ||
-                        reportData.security.status === 'error' ||
-                        reportData.frontend.status === 'failed' || 
-                        reportData.frontend.status === 'error';
-  
-  process.exit(hasFailures ? 1 : 0);
-}
-
-start();
+</html>

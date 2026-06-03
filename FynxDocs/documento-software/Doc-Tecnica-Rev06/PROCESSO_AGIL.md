@@ -1,81 +1,81 @@
-# Processo Agil e Organizacao da Equipe - FYNX Rev. 06
+# Processo Ágil e Organização da Equipe - FYNX Rev. 06
 
-> Documento de definicao do processo de desenvolvimento utilizado no projeto FYNX. A proposta e registrar, de forma simples e organizada, como a equipe esta conduzindo o trabalho: modelo agil adotado, forma de comunicacao, divisao de atividades, papeis, fluxo de execucao e criterios de entrega.
+> Documento de definição do processo de desenvolvimento utilizado no projeto FYNX. A proposta e registrar, de forma simples e organizada, como a equipe esta conduzindo o trabalho: modelo Ágil adotado, forma de comunicação, divisão de atividades, papéis, fluxo de execução e critérios de entrega.
 
 ---
 
 ## 1. Identificacao do Modelo de Processo
 
-O processo adotado no desenvolvimento do FYNX e uma adaptacao do **Extreme Programming (XP)**, combinada com **prototipagem evolutiva top-down** e com uma organizacao tecnica do backend orientada por dominios.
+O processo adotado no desenvolvimento do FYNX é uma adaptação do **Extreme Programming (XP)**, combinada com **prototipagem evolutiva top-down** e com uma organização técnica do backend orientada por domínios.
 
-A equipe nao utiliza Scrum completo, sprints formais ou quadro Kanban estruturado. Em vez disso, adota um processo agil simplificado, mais adequado ao contexto academico, baseado em:
+A equipe não utiliza Scrum completo, sprints formais ou quadro Kanban estruturado. Em vez disso, adota um processo Ágil simplificado, mais adequado ao contexto acadêmico, baseado em:
 
-- comunicacao frequente entre os membros;
+- comunicação frequente entre os membros;
 - lista de atividades e deveres a cumprir;
-- divisao direta de responsabilidades;
-- validacao visual das telas;
-- implementacao incremental;
-- revisao coletiva das entregas;
-- atualizacao da documentacao conforme o projeto evolui.
+- divisão direta de responsabilidades;
+- validação visual das telas;
+- implementação incremental;
+- revisão coletiva das entregas;
+- atualização da documentação conforme o projeto evolui.
 
-Esse modelo foi escolhido porque o projeto possui prazos curtos, equipe reduzida e necessidade de avancar simultaneamente em codigo, documentacao e evidencias academicas.
+Esse modelo foi escolhido porque o projeto possui prazos curtos, equipe reduzida e necessidade de avançar simultaneamente em código, documentação e evidências acadêmicas.
 
 ---
 
 ## 2. Justificativa da Adocao do XP Adaptado
 
-O XP foi usado como referencia por valorizar praticas importantes para projetos pequenos e iterativos. No FYNX, esses valores foram adaptados para a realidade da equipe.
+O XP foi usado como Referência por valorizar práticas importantes para projetos pequenos e iterativos. No FYNX, esses valores foram adaptados para a realidade da equipe.
 
-| Valor do XP | Aplicacao no FYNX |
+| Valor do XP | Aplicação no FYNX |
 |---|---|
-| Comunicacao | A equipe se comunica principalmente pelo grupo de WhatsApp, alinhando tarefas, duvidas, erros e prioridades. |
-| Simplicidade | As funcionalidades sao implementadas conforme a necessidade atual da tela, entrega ou requisito. |
-| Feedback | Telas, fluxos e documentos sao compartilhados para revisao rapida pela propria equipe. |
-| Coragem | A equipe ajusta telas, codigo e documentacao quando identifica inconsistencias ou melhorias necessarias. |
-| Respeito | As responsabilidades sao divididas considerando disponibilidade, conhecimento tecnico e necessidade da entrega. |
+| Comunicação | A equipe se comunica principalmente pelo grupo de WhatsApp, alinhando tarefas, dúvidas, erros e prioridades. |
+| Simplicidade | As funcionalidades são implementadas conforme a necessidade atual da tela, entrega ou requisito. |
+| Feedback | Telas, fluxos e documentos são compartilhados para revisão rápida pela própria equipe. |
+| Coragem | A equipe ajusta telas, código e documentação quando identifica inconsistencias ou melhorias necessárias. |
+| Respeito | As responsabilidades são divididas considerando disponibilidade, conhecimento técnico e necessidade da entrega. |
 
-A equipe nao aplica todas as praticas formais do XP, como programacao em pares constante ou cliente presencial. O que foi adotado e uma versao simplificada dos principios, focada em comunicacao, entrega incremental e revisao rapida.
+A equipe não aplica todas as práticas formais do XP, como programação em pares constante ou cliente presencial. O que foi adotado é uma versão simplificada dos princípios, focada em comunicação, entrega incremental e revisão rápida.
 
 ---
 
 ## 3. Prototipagem Evolutiva Top-Down
 
-A abordagem top-down e usada principalmente nas funcionalidades com forte impacto visual, como dashboard, transacoes, metas e ranking.
+A abordagem top-down é usada principalmente nas funcionalidades com forte impacto visual, como dashboard, transações, metas e ranking.
 
-No FYNX, a equipe parte da tela ou fluxo esperado pelo usuario e depois ajusta a implementacao tecnica necessaria. Isso evita que o backend seja desenvolvido sem clareza sobre quais dados a interface realmente precisa.
+No FYNX, a equipe parte da tela ou fluxo esperado pelo usuário e depois ajusta a implementação técnica necessária. Isso evita que o backend seja desenvolvido sem clareza sobre quais dados a interface realmente precisa.
 
-O processo top-down segue esta logica:
+O processo top-down segue esta lógica:
 
 1. definir ou revisar a tela desejada;
-2. validar a organizacao visual e a experiencia de uso;
+2. validar a organização visual e a experiência de uso;
 3. identificar quais dados a interface precisa consumir;
 4. implementar ou ajustar endpoints;
 5. integrar frontend e backend;
-6. registrar a funcionalidade na documentacao.
+6. registrar a funcionalidade na documentação.
 
-Essa pratica ajuda a reduzir retrabalho, pois a equipe valida primeiro a experiencia principal do usuario antes de aprofundar regras tecnicas.
+Essa prática ajuda a reduzir retrabalho, pois a equipe valida primeiro a experiência principal do usuário antes de aprofundar regras técnicas.
 
 ---
 
-## 4. Desenvolvimento Orientado a Dominios
+## 4. Desenvolvimento Orientado a Domínios
 
-Mesmo com um processo de equipe simples, o backend do FYNX foi organizado por dominios para manter separacao entre responsabilidades.
+Mesmo com um processo de equipe simples, o backend do FYNX foi organizado por domínios para manter separação entre responsabilidades.
 
-| Dominio | Responsabilidade |
+| Domínio | Responsabilidade |
 |---|---|
-| Identidade | Registro, login, autenticacao e JWT. |
-| Financeiro | Transacoes, categorias, metas, budgets e limites. |
+| Identidade | Registro, login, autenticação e JWT. |
+| Financeiro | Transações, categorias, metas, budgets e limites. |
 | Analytics | Dados consolidados para dashboard e indicadores. |
-| Gamificacao | Ranking, score, ligas, conquistas e badges. |
+| Gamificação | Ranking, score, ligas, conquistas e badges. |
 | Infraestrutura | Banco de dados, servidor HTTP, middlewares, logs e rotas centrais. |
 
-Essa organizacao ajuda a equipe a localizar onde cada alteracao deve ser feita. Uma melhoria no ranking, por exemplo, deve ser tratada no dominio de gamificacao; uma alteracao em transacoes deve ser tratada no dominio financeiro.
+Essa organização ajuda a equipe a localizar onde cada alteração deve ser feita. Uma melhoria no ranking, por exemplo, deve ser tratada no domínio de gamificação; uma alteração em transações deve ser tratada no domínio financeiro.
 
-A orientacao por dominios tambem reduz o risco de acoplamento, pois evita que uma funcionalidade seja implementada de forma espalhada e sem criterio.
+A orientação por domínios também reduz o risco de acoplamento, pois evita que uma funcionalidade seja implementada de forma espalhada e sem critério.
 
 ---
 
-## 5. Organizacao Real da Equipe
+## 5. Organização Real da Equipe
 
 ### 5.1. Controle por Lista de Atividades
 
@@ -83,46 +83,46 @@ A equipe organiza o trabalho por meio de uma lista de atividades e deveres. Essa
 
 As atividades podem envolver:
 
-- implementacao de funcionalidades;
+- implementação de funcionalidades;
 - ajustes em telas;
-- criacao ou correcao de componentes;
-- implementacao ou revisao de endpoints;
+- criação ou correcao de componentes;
+- implementação ou revisão de endpoints;
 - correcao de bugs;
 - testes manuais ou automatizados;
-- coleta de evidencias;
-- escrita e revisao da documentacao;
-- preparacao de entregas academicas.
+- coleta de evidências;
+- escrita e revisão da documentação;
+- preparacao de entregas acadêmicas.
 
-Cada atividade recebe um responsavel ou grupo responsavel. A prioridade pode mudar conforme a proximidade da entrega, dificuldade tecnica ou dependencia entre tarefas.
+Cada atividade recebe um responsável ou grupo responsável. A prioridade pode mudar conforme a proximidade da entrega, dificuldade técnica ou dependencia entre tarefas.
 
-### 5.2. Comunicacao pelo WhatsApp
+### 5.2. Comunicação pelo WhatsApp
 
-O WhatsApp e o principal canal de comunicacao da equipe. Ele e usado para manter a equipe alinhada sem depender de reunioes formais longas.
+O WhatsApp é o principal canal de comunicação da equipe. Ele é usado para manter a equipe alinhada sem depender de reunioes formais longas.
 
-No grupo sao compartilhados:
+No grupo são compartilhados:
 
 - andamento das tarefas;
-- duvidas tecnicas;
+- dúvidas técnicas;
 - prints de telas e erros;
 - avisos de impedimentos;
-- pedidos de revisao;
-- decisoes rapidas sobre layout, fluxo ou implementacao;
+- pedidos de revisão;
+- decisões rápidas sobre layout, fluxo ou implementação;
 - combinacao de responsabilidades.
 
-Quando uma decisao tomada no WhatsApp altera o comportamento do sistema ou a estrutura da documentacao, ela deve ser registrada posteriormente nos arquivos da Rev06.
+Quando uma decisão tomada no WhatsApp altera o comportamento do sistema ou a estrutura da documentação, ela deve ser registrada posteriormente nos arquivos da Rev06.
 
 ### 5.3. Alinhamentos Sob Demanda
 
-A equipe nao realiza cerimonias rigidas de Scrum. Os alinhamentos acontecem conforme a necessidade.
+A equipe não realiza cerimonias rigidas de Scrum. Os alinhamentos acontecem conforme a necessidade.
 
 Eles ocorrem principalmente quando:
 
-- uma entrega da disciplina esta proxima;
+- uma entrega da disciplina esta próxima;
 - uma funcionalidade precisa ser dividida;
 - uma tela precisa ser revisada;
-- existe bloqueio tecnico;
+- existe bloqueio técnico;
 - algum documento precisa ser finalizado;
-- uma decisao afeta mais de uma parte do projeto.
+- uma decisão afeta mais de uma parte do projeto.
 
 Essa forma de trabalho reduz burocracia e se adapta melhor ao ritmo da equipe.
 
@@ -130,22 +130,22 @@ Essa forma de trabalho reduz burocracia e se adapta melhor ao ritmo da equipe.
 
 ## 6. Fluxo de Trabalho
 
-O fluxo de trabalho utilizado pela equipe segue uma sequencia simples e repetitiva.
+O fluxo de trabalho utilizado pela equipe segue uma sequência simples e repetitiva.
 
-| Etapa | Descricao |
+| Etapa | Descrição |
 |---|---|
-| 1. Entrada da demanda | A demanda surge por requisito da disciplina, necessidade tecnica, bug ou melhoria identificada. |
-| 2. Discussao inicial | A equipe conversa pelo WhatsApp para entender o escopo e a prioridade. |
+| 1. Entrada da demanda | A demanda surge por requisito da disciplina, necessidade técnica, bug ou melhoria identificada. |
+| 2. Discussão inicial | A equipe conversa pelo WhatsApp para entender o escopo e a prioridade. |
 | 3. Quebra em atividades | A demanda e dividida em tarefas menores e mais executaveis. |
-| 4. Distribuicao | As tarefas sao atribuidas aos membros conforme disponibilidade e conhecimento. |
-| 5. Execucao | Cada responsavel implementa sua parte no frontend, backend, testes ou documentacao. |
-| 6. Compartilhamento | O progresso, duvidas ou resultados sao enviados ao grupo. |
-| 7. Revisao | A equipe valida se o resultado atende ao que foi combinado. |
-| 8. Ajustes | Sao feitos ajustes de tela, regra, integracao ou texto documental. |
-| 9. Registro | Evidencias e documentos sao atualizados quando necessario. |
-| 10. Entrega | A funcionalidade ou artefato e considerado pronto para apresentacao ou avaliacao. |
+| 4. Distribuição | As tarefas são atribuídas aos membros conforme disponibilidade e conhecimento. |
+| 5. Execução | Cada responsável implementa sua parte no frontend, backend, testes ou documentação. |
+| 6. Compartilhamento | O progresso, dúvidas ou resultados são enviados ao grupo. |
+| 7. Revisão | A equipe valida se o resultado atende ao que foi combinado. |
+| 8. Ajustes | São feitos ajustes de tela, regra, integração ou texto documental. |
+| 9. Registro | Evidências e documentos são atualizados quando necessário. |
+| 10. Entrega | A funcionalidade ou artefato É considerado pronto para apresentação ou avaliação. |
 
-Esse fluxo nao depende de uma sprint formal. Ele e aplicado em ciclos curtos conforme as funcionalidades e entregas evoluem.
+Esse fluxo não depende de uma sprint formal. Ele É aplicado em ciclos curtos conforme as funcionalidades e entregas evoluem.
 
 ---
 
@@ -157,47 +157,47 @@ A interacao da equipe pode ser representada de forma textual da seguinte maneira
 Professor / Disciplina / Necessidade do Projeto
                 |
                 v
-        Discussao no WhatsApp
+        Discussão no WhatsApp
                 |
                 v
       Lista de atividades e deveres
                 |
     +-----------+------------+-------------+-------------+
     |                        |             |             |
-Frontend                 Backend     Documentacao     Testes
-Telas e UI               API         Rev06            Evidencias
-Componentes              Dominios    Requisitos       Validacoes
+Frontend                 Backend     Documentação     Testes
+Telas e UI               API         Rev06            Evidências
+Componentes              Domínios    Requisitos       Validações
 Fluxos                   Regras      Diagramas        Prints/Testes
     |                        |             |             |
     +-----------+------------+-------------+-------------+
                 |
                 v
-          Revisao pela equipe
+          Revisão pela equipe
                 |
                 v
-          Ajustes e validacao
+          Ajustes e validação
                 |
                 v
           Entrega consolidada
 ```
 
-Essa representacao mostra que o grupo de WhatsApp funciona como ponto central de comunicacao, enquanto a lista de atividades organiza o que cada frente precisa executar.
+Essa representacao mostra que o grupo de WhatsApp funciona como ponto central de comunicação, enquanto a lista de atividades organiza o que cada frente precisa executar.
 
 ---
 
-## 8. Papeis da Equipe
+## 8. Papéis da Equipe
 
-Os papeis foram adaptados ao tamanho da equipe e ao contexto academico. Eles nao sao totalmente fixos; um mesmo membro pode atuar em mais de uma funcao.
+Os papéis foram adaptados ao tamanho da equipe e ao contexto acadêmico. Eles não são totalmente fixos; um mesmo membro pode atuar em mais de uma função.
 
 | Papel | Responsabilidade |
 |---|---|
-| Lider tecnico / organizador | Ajuda a definir prioridades, orientar integracao, revisar decisoes tecnicas e acompanhar pendencias. |
-| Desenvolvedores | Implementam funcionalidades no frontend e backend, corrigem problemas e fazem integracoes. |
-| Responsaveis por documentacao | Atualizam os documentos academicos e conectam implementacao com requisitos, arquitetura, API e evidencias. |
+| Líder técnico / organizador | Ajuda a definir prioridades, orientar integração, revisar decisões técnicas e acompanhar pendencias. |
+| Desenvolvedores | Implementam funcionalidades no frontend e backend, corrigem problemas e fazem integrações. |
+| Responsáveis por documentação | Atualizam os documentos acadêmicos e conectam implementação com requisitos, arquitetura, API e evidências. |
 | Revisores internos | Conferem telas, fluxos, textos e funcionamento antes da entrega. |
-| Proxy de cliente | A propria equipe avalia se a funcionalidade faz sentido para o usuario final. |
+| Proxy de cliente | A própria equipe avalia se a funcionalidade faz sentido para o usuário final. |
 
-O ponto central e garantir que cada atividade tenha um responsavel claro, mesmo que os papeis sejam flexiveis.
+O ponto central e garantir que cada atividade tenha um responsável claro, mesmo que os papéis sejam flexiveis.
 
 ---
 
@@ -205,43 +205,43 @@ O ponto central e garantir que cada atividade tenha um responsavel claro, mesmo 
 
 | Artefato | Finalidade |
 |---|---|
-| Lista de atividades | Controlar tarefas pendentes, responsaveis e prioridades. |
-| Conversas no WhatsApp | Registrar alinhamentos rapidos, decisoes e duvidas. |
-| Codigo frontend | Materializar telas, componentes e fluxos de usuario. |
-| Codigo backend | Implementar endpoints, regras e dominios de negocio. |
-| Testes e evidencias | Comprovar que funcionalidades importantes foram verificadas. |
+| Lista de atividades | Controlar tarefas pendentes, responsáveis e prioridades. |
+| Conversas no WhatsApp | Registrar alinhamentos rapidos, decisões e dúvidas. |
+| Código frontend | Materializar telas, componentes e fluxos de usuário. |
+| Código backend | Implementar endpoints, regras e domínios de negócio. |
+| Testes e evidências | Comprovar que funcionalidades importantes foram verificadas. |
 | FynxDocs Rev06 | Registrar requisitos, arquitetura, API, banco, processos, telas e rastreabilidade. |
 
-Esses artefatos funcionam juntos. A lista organiza o trabalho, o WhatsApp mantem a comunicacao, o codigo materializa a solucao e a documentacao registra o que foi entregue.
+Esses artefatos funcionam juntos. A lista organiza o trabalho, o WhatsApp mantém a comunicação, o código materializa a solução e a documentação registra o que foi entregue.
 
 ---
 
-## 10. Criterios de Pronto
+## 10. Critérios de Pronto
 
-Uma atividade e considerada pronta quando atende aos criterios aplicaveis ao seu tipo.
+Uma atividade É considerada pronta quando atende aos critérios aplicáveis ao seu tipo.
 
-| Tipo de atividade | Criterio de pronto |
+| Tipo de atividade | Critério de pronto |
 |---|---|
 | Tela ou componente | Visual revisado e funcionando no fluxo esperado. |
-| Backend | Endpoint, regra ou ajuste implementado no dominio adequado. |
-| Integracao | Frontend consumindo a API sem erro critico. |
+| Backend | Endpoint, regra ou ajuste implementado no domínio adequado. |
+| Integração | Frontend consumindo a API sem erro critico. |
 | Bug | Problema corrigido e validado pela equipe. |
-| Teste ou evidencia | Resultado registrado por teste, print ou verificacao manual. |
-| Documentacao | Conteudo atualizado, coerente e sem prometer recurso inexistente. |
+| Teste ou evidência | Resultado registrado por teste, print ou verificação manual. |
+| Documentação | Conteúdo atualizado, coerente e sem prometer recurso inexistente. |
 
 ---
 
-## 11. Beneficios Observados
+## 11. Benefícios Observados
 
-O processo trouxe beneficios praticos para o projeto:
+O processo trouxe benefícios práticos para o projeto:
 
-- comunicacao rapida entre os membros;
-- menor burocracia em comparacao com Scrum formal;
-- melhor adaptacao aos prazos academicos;
-- divisao clara de deveres;
-- revisao rapida de telas e documentos;
-- reducao de retrabalho por validar a interface antes da implementacao completa;
-- organizacao tecnica mais segura por dominios no backend.
+- comunicação rápida entre os membros;
+- menor burocracia em comparação com Scrum formal;
+- melhor adaptação aos prazos acadêmicos;
+- divisão clara de deveres;
+- revisão rápida de telas e documentos;
+- redução de retrabalho por validar a interface antes da implementação completa;
+- organização técnica mais segura por domínios no backend.
 
 ---
 
@@ -250,30 +250,30 @@ O processo trouxe beneficios praticos para o projeto:
 As principais dificuldades observadas foram:
 
 - manter a lista de atividades sempre atualizada;
-- registrar na documentacao decisoes tomadas rapidamente pelo WhatsApp;
-- equilibrar tempo entre implementacao e escrita dos documentos;
+- registrar na documentação decisões tomadas rapidamente pelo WhatsApp;
+- equilibrar tempo entre implementação e escrita dos documentos;
 - evitar que mudancas pequenas de tela fiquem sem registro;
-- manter consistencia entre requisitos, codigo, API, banco e evidencias.
+- manter consistência entre requisitos, código, API, banco e evidências.
 
 ---
 
-## 13. Melhorias Possiveis
+## 13. Melhorias Possíveis
 
 Para evoluir o processo sem aumentar demais a burocracia, a equipe pode adotar melhorias simples:
 
-- manter uma lista unica por entrega;
-- registrar responsavel e status de cada atividade;
-- revisar a documentacao ao final de cada funcionalidade relevante;
-- separar tarefas por frente: frontend, backend, testes e documentacao;
-- guardar evidencias logo apos a validacao de cada fluxo;
-- registrar no documento tecnico as decisoes mais importantes tomadas no WhatsApp.
+- manter uma lista Única por entrega;
+- registrar responsável e status de cada atividade;
+- revisar a documentação ao final de cada funcionalidade relevante;
+- separar tarefas por frente: frontend, backend, testes e documentação;
+- guardar evidências logo após a validação de cada fluxo;
+- registrar no documento técnico as decisões mais importantes tomadas no WhatsApp.
 
 ---
 
-## 14. Avaliacao do Processo
+## 14. Avaliação do Processo
 
-O processo adotado e adequado ao contexto do FYNX porque combina agilidade, simplicidade e organizacao suficiente para o controle academico do projeto.
+O processo adotado e adequado ao contexto do FYNX porque combina agilidade, simplicidade e organização suficiente para o controle acadêmico do projeto.
 
-A equipe nao utiliza um modelo formal completo como Scrum, mas mantem uma estrutura de trabalho baseada em comunicacao frequente, lista de atividades, divisao de responsabilidades, validacao coletiva e documentacao incremental.
+A equipe não utiliza um modelo formal completo como Scrum, mas mantém uma estrutura de trabalho baseada em comunicação frequente, lista de atividades, divisão de responsabilidades, validação coletiva e documentação incremental.
 
-Essa abordagem permite que o projeto avance de forma pratica, mantendo rastreabilidade entre o que foi planejado, implementado e documentado.
+Essa abordagem permite que o projeto avance de forma prática, mantendo rastreabilidade entre o que foi planejado, implementado e documentado.

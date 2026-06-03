@@ -98,7 +98,7 @@ Destina-se a qualquer pessoa que busca estruturar e controlar suas finanças de 
 | Rate Limiting | express-rate-limit | 7.x | Proteção contra abuso de endpoints |
 | Logger | Winston (utils/logger) | — | Logging estruturado de requisições HTTP e erros |
 
-#### Frontend (`FynxV2`)
+#### Frontend (`FynxFront`)
 
 | Camada | Tecnologia | Versão | Papel |
 |---|---|---|---|
@@ -148,7 +148,7 @@ ProjetoFynx/
 │   ├── .env                      → Variáveis de ambiente (não versionado)
 │   └── package.json
 │
-└── FynxV2/                       → Frontend React/Vite
+└── FynxFront/                       → Frontend React/Vite
     ├── src/
     │   ├── pages/
     │   │   ├── Index.tsx          → Dashboard (rota /dashboard)
@@ -1568,7 +1568,7 @@ cp .env.example .env       # Configure as variáveis de ambiente
 npm run dev                # Servidor disponível em http://localhost:3001
 
 # 3. Iniciar o Frontend (em outro terminal)
-cd FynxV2
+cd FynxFront
 npm install
 npm run dev                # Vite disponível em http://localhost:5173
 ```
@@ -1580,9 +1580,9 @@ npm run dev                # Vite disponível em http://localhost:5173
 | `FynxApi` | `npm run dev` | Inicia servidor com hot-reload (tsx watch) |
 | `FynxApi` | `npm run build` | Compila TypeScript para `dist/` |
 | `FynxApi` | `npm start` | Inicia servidor a partir da build |
-| `FynxV2` | `npm run dev` | Inicia Vite dev server |
-| `FynxV2` | `npm run build` | Gera build de produção em `dist/` |
-| `FynxV2` | `npm run preview` | Serve a build de produção localmente |
+| `FynxFront` | `npm run dev` | Inicia Vite dev server |
+| `FynxFront` | `npm run build` | Gera build de produção em `dist/` |
+| `FynxFront` | `npm run preview` | Serve a build de produção localmente |
 
 ### 6.4. Usuário Demo
 

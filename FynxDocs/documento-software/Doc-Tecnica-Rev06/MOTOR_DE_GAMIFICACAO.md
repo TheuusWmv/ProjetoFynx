@@ -1,20 +1,20 @@
-﻿# Motor de Gamificacao - FYNX Rev. 06
+﻿# Motor de Gamificação - FYNX Rev. 06
 
-> Documento especializado do contexto de gamificacao. Consolida score, ranking, ligas, achievements e badges com base em `domains/gamification`, `user_scores`, `achievements`, `user_achievements`, `badges` e `user_badges`.
+> Documento especializado do contexto de gamificação. Consolida score, ranking, ligas, achievements e badges com base em `domains/gamification`, `user_scores`, `achievements`, `user_achievements`, `badges` e `user_badges`.
 
 ---
 
 ## 1. Escopo
 
-O contexto de gamificacao transforma comportamento financeiro em sinais de engajamento. Ele nao deve alterar a semantica financeira das transacoes; ele consome dados financeiros e produz:
+O contexto de gamificação transforma comportamento financeiro em sinais de engajamento. Ele não deve alterar a semântica financeira das transações; ele consome dados financeiros e produz:
 
 - score;
-- nivel;
+- nível;
 - liga;
 - ranking;
 - achievements;
 - badges;
-- recomendacoes e estatisticas de competicao.
+- recomendações e estatísticas de competição.
 
 **Endpoints relacionados:**
 
@@ -24,9 +24,9 @@ O contexto de gamificacao transforma comportamento financeiro em sinais de engaj
 | `GET /api/v1/ranking/leaderboard/global` | Ranking global. |
 | `GET /api/v1/ranking/leaderboard/friends` | Ranking de amigos. |
 | `GET /api/v1/ranking/leaderboard/categories` | Rankings segmentados. |
-| `GET /api/v1/ranking/user/:userId` | Ranking de usuario. |
-| `GET /api/v1/ranking/score/:userId` | Calculo/consulta de score. |
-| `PUT /api/v1/ranking/score/:userId` | Atualizacao de score. |
+| `GET /api/v1/ranking/user/:userId` | Ranking de usuário. |
+| `GET /api/v1/ranking/score/:userId` | Cálculo/consulta de score. |
+| `PUT /api/v1/ranking/score/:userId` | Atualização de score. |
 | `GET /api/v1/ranking/achievements/:userId` | Conquistas. |
 | `GET /api/v1/ranking/badges/:userId` | Badges. |
 | `POST /api/v1/ranking/reset-season` | Reset sazonal. |
@@ -37,23 +37,23 @@ O contexto de gamificacao transforma comportamento financeiro em sinais de engaj
 
 | Tabela | Papel |
 |---|---|
-| `user_scores` | Estado atual do score, nivel, liga, carry-over e streak. |
-| `achievements` | Catalogo de conquistas com pontos. |
-| `user_achievements` | Conquistas obtidas por usuario. |
-| `badges` | Catalogo de badges visuais. |
-| `user_badges` | Badges obtidos por usuario. |
-| `transactions` | Fonte primaria para calculo financeiro. |
+| `user_scores` | Estado atual do score, nível, liga, carry-over e streak. |
+| `achievements` | Catálogo de conquistas com pontos. |
+| `user_achievements` | Conquistas obtidas por usuário. |
+| `badges` | Catálogo de badges visuais. |
+| `user_badges` | Badges obtidos por usuário. |
+| `transactions` | Fonte primaria para cálculo financeiro. |
 | `spending_goals` | Fonte para progresso e metas concluidas. |
 
 ---
 
 ## 3. Score
 
-O score e um indicador derivado de comportamento financeiro. A documentacao deve refletir `ranking.service.ts`; se a formula mudar no codigo, esta secao deve ser atualizada.
+O score É um indicador derivado de comportamento financeiro. A documentação deve refletir `ranking.service.ts`; se a fórmula mudar no código, esta seção deve ser atualizada.
 
 ### 3.1. Componentes recomendados
 
-| Componente | Fonte | Intencao |
+| Componente | Fonte | Intenção |
 |---|---|---|
 | `savingsScore` | Receitas, despesas e saldo liquido | Premiar economia real. |
 | `goalsScore` | Metas concluidas e progresso | Premiar planejamento. |
@@ -61,7 +61,7 @@ O score e um indicador derivado de comportamento financeiro. A documentacao deve
 | `bonusScore` | Achievements e badges | Premiar marcos especiais. |
 | `totalScore` | Soma ponderada | Ranking e liga. |
 
-### 3.2. Exemplo de calculo documentavel
+### 3.2. Exemplo de cálculo documentavel
 
 ```json
 {
@@ -74,7 +74,7 @@ O score e um indicador derivado de comportamento financeiro. A documentacao deve
     {
       "category": "savings",
       "points": 620,
-      "description": "Saldo liquido positivo no periodo."
+      "description": "Saldo liquido positivo no período."
     },
     {
       "category": "goals",
@@ -87,37 +87,37 @@ O score e um indicador derivado de comportamento financeiro. A documentacao deve
 
 ### 3.3. Regras de qualidade do score
 
-- Score nao deve usar dados de outro usuario.
-- Score deve tolerar usuario sem transacoes.
-- Score deve documentar se usa dados mensais, semanais, anuais ou historicos.
-- Mudanca manual de score (`PUT /score/:userId`) deve ser protegida por autorizacao administrativa.
+- Score não deve usar dados de outro usuário.
+- Score deve tolerar usuário sem transações.
+- Score deve documentar se usa dados mensais, semanais, anuais ou históricos.
+- Mudanca manual de score (`PUT /score/:userId`) deve ser protegida por autorização administrativa.
 
 ---
 
 ## 4. Ligas
 
-As ligas sao a representacao competitiva do score.
+As ligas são a representacao competitiva do score.
 
-| Liga | Uso recomendado | Observacao |
+| Liga | Uso recomendado | Observação |
 |---|---|---|
 | Bronze | Entrada e score baixo. | Valor default em `user_scores.league`. |
-| Prata | Evolucao intermediaria. | Deve ser calculada pelo service. |
+| Prata | Evolução intermediária. | Deve ser calculada pelo service. |
 | Ouro | Alta disciplina. | Deve refletir score e percentil. |
-| Platina | Usuario avancado. | Exige criterio claro. |
-| Diamante | Elite competitiva. | Evitar criterio impossivel ou arbitrario. |
+| Platina | Usuário avancado. | Exige critério claro. |
+| Diamante | Elite competitiva. | Evitar critério impossivel ou arbitrario. |
 
-**Regra documental:** os limites numericos de cada liga so devem ser fixados aqui se estiverem fixos no codigo ou em arquivo de config. Caso contrario, documentar como calculo dinamico.
+**Regra documental:** os limites numéricos de cada liga só devem ser fixados aqui se estiverem fixos no código ou em arquivo de config. Caso contrário, documentar como cálculo dinâmico.
 
 ### 4.1. Fonte atual dos limites
 
-No codigo atual, existem duas estrategias registradas em `ranking.service.ts`:
+No código atual, existem duas estratégias registradas em `ranking.service.ts`:
 
-| Fonte no codigo | Regra | Observacao |
+| Fonte no código | Regra | Observação |
 |---|---|---|
 | `calculateLeague(score)` | Bronze abaixo de 2500, Prata a partir de 2500, Ouro a partir de 5000, Platina a partir de 7500, Diamante a partir de 10000. | Faixa absoluta por pontos. |
-| `calculateUserLeague(userId, score)` | Diamante ate 1% superior, Platina ate 5%, Ouro ate 20%, Prata ate 50%, Bronze acima disso. | Faixa relativa por percentile do ranking. |
+| `calculateUserLeague(userId, score)` | Diamante até 1% superior, Platina até 5%, Ouro até 20%, Prata até 50%, Bronze acima disso. | Faixa relativa por percentile do ranking. |
 
-Essa duplicidade deve ser consolidada em uma unica politica antes de tratar a regra de ligas como governanca final. O arquivo `ranking.config.ts` existe, mas nao define thresholds no estado atual inspecionado.
+Essa duplicidade deve ser consolidada em uma Única política antes de tratar a regra de ligas como governanca final. O arquivo `ranking.config.ts` existe, mas não define thresholds no estado atual inspecionado.
 
 ---
 
@@ -125,7 +125,7 @@ Essa duplicidade deve ser consolidada em uma unica politica antes de tratar a re
 
 ### 5.1. Ranking global
 
-Ordena usuarios por score, retornando posicao, username, score, nivel, liga e tendencia.
+Ordena usuários por score, retornando posição, username, score, nível, liga e tendência.
 
 **Contrato base:**
 
@@ -133,7 +133,7 @@ Ordena usuarios por score, retornando posicao, username, score, nivel, liga e te
 {
   "position": 1,
   "userId": "1",
-  "username": "Usuario Demo",
+  "username": "Usuário Demo",
   "score": 1250,
   "level": 4,
   "league": "Prata",
@@ -148,19 +148,19 @@ Podem separar:
 
 - economia;
 - metas;
-- consistencia.
+- consistência.
 
 Cada categoria deve ter fonte de dados e regra documentada no service.
 
 ### 5.3. Ranking de amigos
 
-Existe endpoint para leaderboard de amigos. Se ainda nao houver modelo de amizade no schema, a resposta deve ser tratada como read model derivado, mockado ou funcionalidade parcial, conforme implementacao real.
+Existe endpoint para leaderboard de amigos. Se ainda não houver modelo de amizade no schema, a resposta deve ser tratada como read model derivado, mockado ou funcionalidade parcial, conforme implementação real.
 
 ---
 
 ## 6. Achievements
 
-Achievements sao conquistas sem necessariamente serem exibidas como badge visual principal.
+Achievements são conquistas sem necessariamente serem exibidas como badge visual principal.
 
 **Tabela fonte:** `achievements`
 **Tabela de ganho:** `user_achievements`
@@ -168,9 +168,9 @@ Achievements sao conquistas sem necessariamente serem exibidas como badge visual
 | Campo | Origem | Uso |
 |---|---|---|
 | `name` | `achievements.name` | Nome da conquista. |
-| `description` | `achievements.description` | Explicacao. |
+| `description` | `achievements.description` | Explicação. |
 | `icon` | `achievements.icon` | Representacao visual. |
-| `points` | `achievements.points` | Bonus no score, se aplicavel. |
+| `points` | `achievements.points` | Bonus no score, se aplicável. |
 | `earned_at` | `user_achievements.earned_at` | Data de desbloqueio. |
 
 **Regra de integridade:** `UNIQUE(user_id, achievement_id)` impede duplicidade.
@@ -179,7 +179,7 @@ Achievements sao conquistas sem necessariamente serem exibidas como badge visual
 
 ## 7. Badges
 
-Badges sao premios visuais. O catalogo e semeado por `INITIAL_BADGES` em `seed.ts`.
+Badges são prêmios visuais. O catálogo É semeado por `INITIAL_BADGES` em `seed.ts`.
 
 **Tabela fonte:** `badges`
 **Tabela de ganho:** `user_badges`
@@ -187,8 +187,8 @@ Badges sao premios visuais. O catalogo e semeado por `INITIAL_BADGES` em `seed.t
 | Campo | Origem | Uso |
 |---|---|---|
 | `id` | `badges.id` | Chave textual. |
-| `name` | `badges.name` | Nome publico. |
-| `description` | `badges.description` | Criterio narrativo. |
+| `name` | `badges.name` | Nome público. |
+| `description` | `badges.description` | Critério narrativo. |
 | `icon` | `badges.icon` | UI. |
 | `category` | `badges.category` | Agrupamento. |
 | `requirements` | `badges.requirements` | JSON de requisitos, se usado. |
@@ -197,17 +197,17 @@ Badges sao premios visuais. O catalogo e semeado por `INITIAL_BADGES` em `seed.t
 
 ---
 
-## 8. Eventos de Dominio
+## 8. Eventos de Domínio
 
 Eventos encontrados no contexto:
 
 | Evento | Arquivo | Uso esperado |
 |---|---|---|
-| `TransactionCreatedEvent` | `domains/financial/events/transaction-created.event.ts` | Acionar recalculo de score ou badges por transacao. |
+| `TransactionCreatedEvent` | `domains/financial/events/transaction-created.event.ts` | Acionar recálculo de score ou badges por transação. |
 | `GoalCompletedEvent` | `domains/financial/events/goal-completed.event.ts` | Acionar conquistas por meta. |
-| `BadgeEarnedEvent` | `domains/gamification/events/badge-earned.event.ts` | Notificar obtencao de badge. |
+| `BadgeEarnedEvent` | `domains/gamification/events/badge-earned.event.ts` | Notificar obtenção de badge. |
 
-**Status:** a documentacao deve verificar, antes de afirmar comportamento assincrono, se os eventos estao efetivamente conectados ao `event-bus`.
+**Status:** a documentação deve verificar, antes de afirmar comportamento assíncrono, se os eventos estão efetivamente conectados ao `event-bus`.
 
 ---
 
@@ -217,51 +217,51 @@ Eventos encontrados no contexto:
 
 **Requisitos para uso seguro:**
 
-1. Exigir permissao administrativa.
+1. Exigir permissão administrativa.
 2. Registrar auditoria.
 3. Definir regra de carry-over.
-4. Evitar execucao concorrente.
-5. Preservar ou documentar historico da temporada encerrada.
+4. Evitar execução concorrente.
+5. Preservar ou documentar histórico da temporada encerrada.
 
-Se qualquer item acima nao existir no codigo, o endpoint deve ser considerado funcionalmente incompleto do ponto de vista de governanca.
+Se qualquer item acima não Existir no código, o endpoint deve ser considerado funcionalmente incompleto do ponto de vista de governanca.
 
 ---
 
-## 10. Anti-Manipulacao
+## 10. Anti-manipulação
 
-Politicas recomendadas:
+Políticas recomendadas:
 
-| Politica | Status documental | Motivo |
+| Política | Status documental | Motivo |
 |---|---|---|
-| Limite de ganho por periodo | Recomendado | Evita farming por muitas transacoes pequenas. |
-| Auditoria de alteracao manual de score | Recomendado | Protege `PUT /score/:userId`. |
-| Recalculo idempotente de score | Recomendado | Evita duplicar pontos por retry. |
-| Validacao de ownership | Obrigatorio | Impede consultar ou alterar outro usuario indevidamente. |
+| Limite de ganho por período | Recomendado | Evita farming por muitas transações pequenas. |
+| Auditoria de alteração manual de score | Recomendado | Protege `PUT /score/:userId`. |
+| Recálculo idempotente de score | Recomendado | Evita duplicar pontos por retry. |
+| Validação de ownership | Obrigatório | Impede consultar ou alterar outro usuário indevidamente. |
 
 ---
 
-## 11. UX de Gamificacao
+## 11. UX de Gamificação
 
-O frontend deve expor gamificacao sem esconder o objetivo financeiro principal.
+O frontend deve expor gamificação sem esconder o objetivo financeiro principal.
 
 Elementos esperados:
 
 - card de score;
 - liga atual;
-- progresso de nivel;
+- progresso de nível;
 - ranking global;
 - conquistas obtidas;
-- badges disponiveis;
+- badges disponíveis;
 - feedback visual quando uma conquista e desbloqueada.
 
 Esses elementos devem consumir `/api/v1/ranking` e endpoints auxiliares, sem recalcular regra critica no client.
 
 ---
 
-## 12. Checklist de Consistencia
+## 12. Checklist de Consistência
 
 - `MOTOR_DE_GAMIFICACAO.md` deve bater com `ranking.service.ts`.
-- Limites de ligas nao devem ser inventados se nao estiverem fixos no codigo.
+- Limites de ligas não devem ser inventados se não Estiverem fixos no código.
 - Achievements e badges devem bater com `schema.ts` e `seed.ts`.
-- Endpoints administrativos devem ser marcados como sensiveis.
-- Eventos so devem ser descritos como ativos se estiverem conectados.
+- Endpoints administrativos devem ser marcados como sensíveis.
+- Eventos só devem ser descritos como ativos se estiverem conectados.
