@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { GoalsService } from './goals.service.js';
 import { z } from 'zod';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 import type { UpdateSpendingGoalRequest } from './goals.types.js';
 
 const createSpendingGoalSchema = z.object({

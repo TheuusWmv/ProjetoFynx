@@ -12,6 +12,7 @@ function formatSpendingLimitFromDB(row: any): SpendingLimit {
     id: row.id.toString(),
     category: row.category,
     limitAmount: row.limit_amount,
+    currentAmount: row.current_spent,
     currentSpent: row.current_spent,
     period: row.period,
     startDate: row.start_date,

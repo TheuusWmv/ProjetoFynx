@@ -8,7 +8,7 @@
 import type { Request, Response } from 'express';
 import * as DashboardService from './dashboard.service.js';
 import { TransactionsService } from '../../financial/transactions/transactions.service.js';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 
 /**
  * Controlador para buscar os dados do dashboard.

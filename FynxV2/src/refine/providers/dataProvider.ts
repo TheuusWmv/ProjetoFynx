@@ -24,6 +24,7 @@ const RESOURCE_TO_PATH: Record<string, string> = {
   // Transações e limites
   'transactions': 'transactions',
   'spending-limits': 'spending-limits',
+  'categories': 'categories/custom',
   // Metas (corrige 404 de saving-goals)
   'saving-goals': 'goals/spending-goals',
   'goals': 'goals',

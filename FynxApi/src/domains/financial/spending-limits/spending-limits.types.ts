@@ -2,6 +2,7 @@ export interface SpendingLimit {
   id: string;
   category: string;
   limitAmount: number;
+  currentAmount: number;
   currentSpent: number;
   period: 'monthly' | 'weekly' | 'yearly';
   startDate: string;

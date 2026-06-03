@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { CustomCategoriesService } from './customCategories.service.js';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 
 export class CustomCategoriesController {
   static async list(req: AuthRequest, res: Response) {

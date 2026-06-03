@@ -77,13 +77,38 @@ const SpendingLimitsCreate: React.FC = () => {
                     <SelectValue placeholder="Selecione o período" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mensal">Mensal</SelectItem>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="anual">Anual</SelectItem>
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="yearly">Anual</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.period && (
                   <p className="text-sm text-red-500">{String(errors.period.message || 'Erro de validação')}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Data Inicial</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  {...register('startDate', { required: 'Data inicial e obrigatoria' })}
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                />
+                {errors.startDate && (
+                  <p className="text-sm text-red-500">{String(errors.startDate.message || 'Erro de validacao')}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Data Final</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  {...register('endDate', { required: 'Data final e obrigatoria' })}
+                />
+                {errors.endDate && (
+                  <p className="text-sm text-red-500">{String(errors.endDate.message || 'Erro de validacao')}</p>
                 )}
               </div>
 

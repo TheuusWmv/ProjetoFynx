@@ -83,37 +83,6 @@ class Database {
         for (const [name, sql] of Object.entries(SCHEMA)) {
             await this.run(sql as string);
         }
-        // Backward compatibility for custom_categories and budgets not yet in SCHEMA
-        await this.run(`
-            CREATE TABLE IF NOT EXISTS custom_categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                is_active INTEGER DEFAULT 1,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        `);
-        await this.run(`
-            CREATE TABLE IF NOT EXISTS budgets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                total_amount DECIMAL(10,2) NOT NULL,
-                category TEXT NOT NULL DEFAULT 'Geral',
-                allocated_amount DECIMAL(10,2) NOT NULL,
-                spent_amount DECIMAL(10,2) DEFAULT 0,
-                remaining_amount DECIMAL(10,2) DEFAULT 0,
-                period TEXT NOT NULL CHECK (period IN ('monthly', 'weekly', 'yearly')),
-                start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
-                status TEXT NOT NULL DEFAULT 'active',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        `);
     }
 
     private async applyMigrations() {

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { RankingService } from './ranking.service.js';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 
 export class RankingController {
   static async getUserRanking(req: AuthRequest, res: Response) {

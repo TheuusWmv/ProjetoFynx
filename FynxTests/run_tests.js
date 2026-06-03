@@ -28,6 +28,33 @@ function getTimestamp() {
   return `${dateStr}_${timeStr}`;
 }
 
+const SECURITY_SCAN_CATALOG = {
+  dependencies: {
+    title: 'Dependencias e supply chain',
+    owasp: 'OWASP A06:2021 - Vulnerable and Outdated Components',
+    description: 'Verifica se pacotes de terceiros possuem vulnerabilidades conhecidas ou se o projeto nao usa lockfile para fixar versoes instaladas.',
+    examples: ['npm audit', 'package lockfile', 'pacotes vulneraveis', 'integridade da instalacao']
+  },
+  secrets: {
+    title: 'Segredos e credenciais',
+    owasp: 'OWASP A02/A07:2021 - Cryptographic Failures / Identification and Authentication Failures',
+    description: 'Procura credenciais, tokens, chaves privadas, strings de conexao e senhas hardcoded que poderiam permitir acesso indevido.',
+    examples: ['API keys', 'tokens JWT/Bearer', 'senhas em codigo', 'chaves privadas']
+  },
+  code_patterns: {
+    title: 'Padroes perigosos de codigo',
+    owasp: 'OWASP A03:2021 - Injection',
+    description: 'Busca construcoes associadas a injecao de codigo, SQL injection, XSS e desserializacao insegura.',
+    examples: ['eval/exec', 'SQL por concatenacao', 'innerHTML inseguro', 'pickle/yaml inseguro']
+  },
+  configuration: {
+    title: 'Configuracao de seguranca',
+    owasp: 'OWASP A05:2021 - Security Misconfiguration',
+    description: 'Valida configuracoes inseguras, como debug exposto, CORS perigoso e ausencia de headers de protecao HTTP.',
+    examples: ['CSP', 'HSTS', 'X-Frame-Options', 'CORS', 'debug mode']
+  }
+};
+
 // Global state to collect data for HTML report
 const reportData = {
   timestamp: new Date().toLocaleString('pt-BR'),
@@ -41,6 +68,7 @@ const reportData = {
   security: {
     status: 'pending',
     summary: { critical: 0, high: 0, medium: 0, total: 0 },
+    checks: [],
     findings: [],
     rawLog: ''
   },
@@ -166,13 +194,33 @@ async function start() {
       const jsonStr = securityResult.stdout.substring(firstBrace, lastBrace + 1);
       const securityData = JSON.parse(jsonStr);
       
-      reportData.security.status = securityData.summary && securityData.summary.critical > 0 ? 'warning' : 'passed';
+      const securityFindingCount = (securityData.summary && securityData.summary.total_findings) || 0;
+      reportData.security.status = securityFindingCount > 0 ? 'warning' : 'passed';
       reportData.security.summary = {
         critical: (securityData.summary && securityData.summary.critical) || 0,
         high: (securityData.summary && securityData.summary.high) || 0,
         medium: (securityData.summary && securityData.summary.medium) || 0,
         total: (securityData.summary && securityData.summary.total_findings) || 0
       };
+
+      reportData.security.checks = Object.entries(SECURITY_SCAN_CATALOG).map(([scannerKey, meta]) => {
+        const scanObj = securityData.scans && securityData.scans[scannerKey];
+        const findings = scanObj && Array.isArray(scanObj.findings) ? scanObj.findings : [];
+        const hasCritical = findings.some(f => f.severity === 'critical');
+        const hasHigh = findings.some(f => f.severity === 'high');
+        const hasFindings = findings.length > 0;
+
+        return {
+          scannerKey,
+          title: meta.title,
+          owasp: meta.owasp,
+          description: meta.description,
+          examples: meta.examples,
+          status: scanObj ? scanObj.status : 'Nao executado',
+          result: !scanObj ? 'not-run' : hasCritical ? 'critical' : hasHigh ? 'high' : hasFindings ? 'warning' : 'passed',
+          findingsCount: findings.length
+        };
+      });
 
       // Extract details
       const extractFindings = (scannerKey, typeLabel) => {
@@ -195,6 +243,7 @@ async function start() {
       extractFindings('secrets', 'Exposição de Segredos');
       extractFindings('code_patterns', 'Risco de Código');
       extractFindings('configuration', 'Configuração Insegura');
+      extractFindings('dependencies', 'Dependencias Vulneraveis');
     } else {
       reportData.security.status = 'warning';
     }
@@ -554,6 +603,19 @@ function generateHtmlReport() {
           <p class="text-xs text-slate-400">Vulnerabilidades de código e credenciais expostas</p>
         </div>
 
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h4 class="font-bold text-white">Cobertura OWASP Top 10</h4>
+              <p class="text-xs text-slate-400">Tipos de verificacoes executadas pelo scanner estatico.</p>
+            </div>
+            <i data-lucide="shield-check" class="w-5 h-5 text-indigo-300"></i>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="security-checks-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
         <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <table class="w-full text-left text-xs border-collapse">
             <thead>
@@ -570,8 +632,8 @@ function generateHtmlReport() {
           </table>
           <div id="security-empty-state" class="hidden p-8 text-center text-slate-500">
             <i data-lucide="check-circle" class="w-12 h-12 text-emerald-500 mx-auto mb-2 opacity-50"></i>
-            <p class="font-medium text-slate-300">Nenhum problema crítico de segurança foi encontrado!</p>
-            <p class="text-xs text-slate-500 mt-1">O projeto está limpo de vulnerabilidades estáticas conhecidas.</p>
+            <p class="font-medium text-slate-300">Nenhum achado de seguranca foi encontrado!</p>
+            <p class="text-xs text-slate-500 mt-1">Todas as verificacoes mapeadas acima passaram sem vulnerabilidades estaticas conhecidas.</p>
           </div>
         </div>
       </div>
@@ -833,6 +895,62 @@ function generateHtmlReport() {
       // Render Security
       var securityContainer = document.getElementById('security-findings-container');
       var securityEmptyState = document.getElementById('security-empty-state');
+      var securityChecksContainer = document.getElementById('security-checks-container');
+
+      if (securityChecksContainer) {
+        securityChecksContainer.innerHTML = '';
+        (data.security.checks || []).forEach(function(check) {
+          var result = check.result || 'not-run';
+          var badgeClass = 'bg-slate-500/10 border border-slate-500/25 text-slate-300';
+          var resultLabel = 'Nao executado';
+          var resultIcon = 'circle-help';
+
+          if (result === 'passed') {
+            badgeClass = 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-300';
+            resultLabel = 'Passou';
+            resultIcon = 'check-circle';
+          } else if (result === 'critical') {
+            badgeClass = 'bg-rose-500/10 border border-rose-500/25 text-rose-300';
+            resultLabel = 'Critico';
+            resultIcon = 'alert-triangle';
+          } else if (result === 'high') {
+            badgeClass = 'bg-orange-500/10 border border-orange-500/25 text-orange-300';
+            resultLabel = 'Alto';
+            resultIcon = 'alert-triangle';
+          } else if (result === 'warning') {
+            badgeClass = 'bg-amber-500/10 border border-amber-500/25 text-amber-300';
+            resultLabel = 'Aviso';
+            resultIcon = 'alert-circle';
+          }
+
+          var examples = (check.examples || []).map(function(item) {
+            return '<span class="text-[10px] px-2 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-400">' + escapeHtml(item) + '</span>';
+          }).join('');
+          var findingsCount = check.findingsCount || 0;
+          var findingsLabel = findingsCount === 1 ? '1 achado' : findingsCount + ' achados';
+
+          var checkHtml = '<div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">' +
+            '<div class="flex items-start justify-between gap-3">' +
+              '<div class="min-w-0">' +
+                '<div class="flex items-center gap-2">' +
+                  '<i data-lucide="' + resultIcon + '" class="w-4 h-4 text-slate-400 shrink-0"></i>' +
+                  '<p class="font-bold text-white">' + escapeHtml(check.title || '') + '</p>' +
+                '</div>' +
+                '<p class="text-[11px] text-indigo-300 mt-1">' + escapeHtml(check.owasp || '') + '</p>' +
+              '</div>' +
+              '<span class="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold ' + badgeClass + '">' + resultLabel + '</span>' +
+            '</div>' +
+            '<p class="text-xs text-slate-300 leading-relaxed">' + escapeHtml(check.description || '') + '</p>' +
+            '<div class="flex flex-wrap gap-2">' + examples + '</div>' +
+            '<div class="flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-800 pt-3">' +
+              '<span>' + findingsLabel + '</span>' +
+              '<span class="font-mono text-slate-300">' + escapeHtml(check.status || '') + '</span>' +
+            '</div>' +
+          '</div>';
+
+          securityChecksContainer.innerHTML += checkHtml;
+        });
+      }
       
       if (data.security.findings.length === 0) {
         securityEmptyState.classList.remove('hidden');
@@ -846,18 +964,18 @@ function generateHtmlReport() {
 
           var rowHtml = '<tr class="hover:bg-slate-900/50 transition">' +
             '<td class="p-4 align-top">' +
-              '<span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ' + getSevColor(f.severity) + '">' + f.severity + '</span>' +
+              '<span class="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ' + getSevColor(f.severity) + '">' + escapeHtml(f.severity || '') + '</span>' +
             '</td>' +
-            '<td class="p-4 align-top font-medium text-slate-300">' + f.type + '</td>' +
+            '<td class="p-4 align-top font-medium text-slate-300">' + escapeHtml(f.type || '') + '</td>' +
             '<td class="p-4 align-top font-mono text-slate-400">' +
-              '<span class="text-indigo-400">' + f.file + '</span><span class="text-slate-600">:' + f.line + '</span>' +
+              '<span class="text-indigo-400">' + escapeHtml(f.file || '') + '</span><span class="text-slate-600">:' + escapeHtml(String(f.line || 0)) + '</span>' +
             '</td>' +
             '<td class="p-4 align-top space-y-2">' +
-              '<p class="font-medium text-slate-200">' + f.description + '</p>' +
+              '<p class="font-medium text-slate-200">' + escapeHtml(f.description || '') + '</p>' +
               (f.snippet ? '<div class="bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-[10px] font-mono text-slate-400 overflow-x-auto">' + escapeHtml(f.snippet) + '</div>' : '') +
               '<p class="text-xs text-indigo-400/90 flex items-center gap-1">' +
                 '<i data-lucide="help-circle" class="w-3.5 h-3.5"></i>' +
-                '<span><strong>Recomendação:</strong> ' + f.recommendation + '</span>' +
+                '<span><strong>Recomendacao:</strong> ' + escapeHtml(f.recommendation || '') + '</span>' +
               '</p>' +
             '</td>' +
           '</tr>';
@@ -966,6 +1084,8 @@ function generateHtmlReport() {
   // Check if there are failures to determine exit code
   const hasFailures = reportData.backend.status === 'failed' || 
                         reportData.backend.status === 'error' || 
+                        reportData.security.status === 'warning' ||
+                        reportData.security.status === 'error' ||
                         reportData.frontend.status === 'failed' || 
                         reportData.frontend.status === 'error';
   

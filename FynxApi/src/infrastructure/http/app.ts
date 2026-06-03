@@ -4,6 +4,7 @@ import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
 import { logger } from '../../shared/utils/logger.js';
 import routes from './routes/index.js';
+import { securityHeaders } from './middlewares/securityHeaders.js';
 import '../database/database.js';
 import { initializeApp } from '../init.js';
 import {
@@ -23,6 +24,7 @@ const app = express();
 
 // Middlewares Essenciais
 const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+app.use(securityHeaders);
 app.use(cors({ origin: allowedOrigin }));
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));

@@ -1,8 +1,6 @@
 // Exportações centralizadas dos providers do Refine
 export { dataProvider } from './dataProvider';
-
-// Placeholder para authProvider (implementar no futuro quando necessário)
-// export { authProvider } from './authProvider';
+export { authProvider } from './authProvider';
 
 // Tipos para os recursos
 export interface Transaction {
@@ -31,7 +29,7 @@ export interface SpendingLimit {
   category: string;
   limitAmount: number;
   currentAmount: number;
-  period: 'daily' | 'weekly' | 'monthly';
+  period: 'monthly' | 'weekly' | 'yearly';
   startDate: string;
   endDate: string;
   userId: string;

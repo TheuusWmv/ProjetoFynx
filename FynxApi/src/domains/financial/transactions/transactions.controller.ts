@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { TransactionsService } from './transactions.service.js';
 import { z } from 'zod';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 import type { BulkTransactionOperation, TransactionFilters, UpdateTransactionRequest, CreateTransactionRequest } from './transactions.types.js';
 import { createTransactionUseCase, deleteTransactionUseCase, transactionRepository, categoryRepository } from '../../../infrastructure/container.js';
 

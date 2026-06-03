@@ -137,9 +137,9 @@ export class DatabaseLogger {
     
     // Remover valores sensíveis de queries
     return query
-      .replace(/password\s*=\s*'[^']*'/gi, "password = '[REDACTED]'")
-      .replace(/token\s*=\s*'[^']*'/gi, "token = '[REDACTED]'")
-      .replace(/secret\s*=\s*'[^']*'/gi, "secret = '[REDACTED]'");
+      .replace(/password\s*=\s*'[^']*'/gi, 'password = ?')
+      .replace(/token\s*=\s*'[^']*'/gi, 'token = ?')
+      .replace(/secret\s*=\s*'[^']*'/gi, 'secret = ?');
   }
   
   // Log de transações

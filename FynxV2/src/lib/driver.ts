@@ -18,6 +18,26 @@ import "@/styles/driver.css";
 let driverObj: ReturnType<typeof driver> | null = null;
 let handleEscape: ((e: KeyboardEvent) => void) | null = null;
 
+const setChevronIcon = (button: Element, direction: 'previous' | 'next') => {
+    const svgNamespace = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNamespace, 'svg');
+    const path = document.createElementNS(svgNamespace, 'path');
+
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '24');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    path.setAttribute('d', direction === 'previous' ? 'M15 6L9 12L15 18' : 'M9 6L15 12L9 18');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+
+    svg.appendChild(path);
+    button.replaceChildren(svg);
+    button.setAttribute('aria-label', direction === 'previous' ? 'Anterior' : 'Proximo');
+};
+
 export const createDriver = (steps: DriveStep[]) => {
     // Destroy existing instance if any
     if (driverObj) {
@@ -105,12 +125,12 @@ export const createDriver = (steps: DriveStep[]) => {
                 // Sempre reaplica SVG nas setas para garantir centralização, mesmo após hover/focus ou rerender do driver.js
                 const prevBtn = footer.querySelector('button.driver-prev-btn');
                 if (prevBtn) {
-                    prevBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                    setChevronIcon(prevBtn, 'previous');
                 }
                 const nextBtn = footer.querySelector('button.driver-next-btn');
                 if (nextBtn) {
                     // Sempre mostra só a seta →, nunca texto
-                    nextBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                    setChevronIcon(nextBtn, 'next');
                     // Move o botão "próximo" para ser o primeiro botão focável no footer
                     const closeBtn = footer.querySelector('button.driver-popover-close-btn');
                     if (closeBtn && nextBtn !== closeBtn.previousSibling) {

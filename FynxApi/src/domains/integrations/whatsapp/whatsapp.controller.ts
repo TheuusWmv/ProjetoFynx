@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { z } from 'zod';
-import type { AuthRequest } from '../../../infrastructure/http/middleware/auth.middleware.js';
+import type { AuthRequest } from '../../../infrastructure/http/middlewares/auth.middleware.js';
 import { confirmVerificationSchema, requestVerificationSchema } from './schemas/whatsapp.schemas.js';
 import { WhatsappDomainError, WhatsappService } from './whatsapp.service.js';
 

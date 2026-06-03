@@ -6,11 +6,14 @@ const router = Router();
 // Get all spending limits
 router.get('/', SpendingLimitsController.getSpendingLimits);
 
-// Get spending limit by ID
-router.get('/:id', SpendingLimitsController.getSpendingLimitById);
+// Get all categories
+router.get('/categories/list', SpendingLimitsController.getCategories);
 
 // Get spending limit by category
 router.get('/category/:category', SpendingLimitsController.getSpendingLimitByCategory);
+
+// Get spending limit by ID
+router.get('/:id', SpendingLimitsController.getSpendingLimitById);
 
 // Create new spending limit
 router.post('/', SpendingLimitsController.createSpendingLimit);
@@ -23,8 +26,5 @@ router.patch('/:id/progress', SpendingLimitsController.updateSpendingLimitProgre
 
 // Delete spending limit
 router.delete('/:id', SpendingLimitsController.deleteSpendingLimit);
-
-// Get all categories
-router.get('/categories/list', SpendingLimitsController.getCategories);
 
 export default router;

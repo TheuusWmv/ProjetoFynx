@@ -19,6 +19,17 @@ export const SCHEMA = {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `,
+  custom_categories: `
+    CREATE TABLE IF NOT EXISTS custom_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_active INTEGER DEFAULT 1,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
   transactions: `
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +66,39 @@ export const SCHEMA = {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
+  budgets: `
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      total_amount DECIMAL(10,2) NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Geral',
+      allocated_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+      spent_amount DECIMAL(10,2) DEFAULT 0,
+      remaining_amount DECIMAL(10,2) DEFAULT 0,
+      period TEXT NOT NULL CHECK (period IN ('monthly', 'weekly', 'yearly')),
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  `,
+  spending_limits: `
+    CREATE TABLE IF NOT EXISTS spending_limits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      limit_amount DECIMAL(10,2) NOT NULL,
+      current_spent DECIMAL(10,2) DEFAULT 0,
+      period TEXT NOT NULL CHECK (period IN ('monthly', 'weekly', 'yearly')),
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('active', 'exceeded', 'paused')) DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `,
   user_scores: `
